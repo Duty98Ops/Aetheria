@@ -450,10 +450,9 @@ class Player extends Entity {
     if (this.pos.x < 0) this.pos.x = 0;
     if (this.pos.x > maxX - this.width) this.pos.x = maxX - this.width;
     if (this.pos.y < -100) this.pos.y = -100; // Allow some high jumping
-    if (this.pos.y > maxY) {
-       // Only if they actually fall through the bottom wall
-       this.pos.y = maxY - this.height; 
-       this.onGround = true;
+    if (this.pos.y > maxY + 200) {
+       this.hp = 0;
+       this.isDead = true;
     }
   }
 
@@ -1477,6 +1476,10 @@ export default function App() {
             setGameState('ESCAPE');
             engine.escapeDuration = 60000; 
           }, 4000);
+          
+          // Ensure portal opens in final room for escape
+          engine.portalOpen = true;
+          setPortalOpen(true);
         } else if (!engine.portalOpen) {
           engine.portalOpen = true;
           setPortalOpen(true);
@@ -1497,15 +1500,20 @@ export default function App() {
     if (Math.random() > 0.95) setFlicker(0.8 + Math.random() * 0.4);
     else setFlicker(f => f + (1 - f) * 0.1);
 
-    // Portal Trigger (Checks 4 corners for overlap with cell 4)
+    // Portal Trigger (Checks 4 corners for overlap with cell 4, or simple distance check)
     const corners = [
       { x: player.pos.x, y: player.pos.y },
       { x: player.pos.x + player.width, y: player.pos.y },
       { x: player.pos.x, y: player.pos.y + player.height },
-      { x: player.pos.x + player.width, y: player.pos.y + player.height }
+      { x: player.pos.x + player.width, y: player.pos.y + player.height },
+      { x: player.pos.x + player.width / 2, y: player.pos.y + player.height / 2 } // Center check
     ];
 
+    const portalX = (level[0].length - 1.5) * TILE_SIZE;
+    const portalY = (level.length - 2.5) * TILE_SIZE;
+
     let touchingPortal = false;
+    // 1. Tile based check (Precise)
     for (const c of corners) {
       const gx = Math.floor(c.x / TILE_SIZE);
       const gy = Math.floor(c.y / TILE_SIZE);
@@ -1515,6 +1523,14 @@ export default function App() {
           break;
         }
       }
+    }
+
+    // 2. Proximity check (Forgiving fallback)
+    if (!touchingPortal) {
+      const dx = (player.pos.x + player.width / 2) - portalX;
+      const dy = (player.pos.y + player.height / 2) - portalY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 50) touchingPortal = true;
     }
     
      if (touchingPortal && engine.portalOpen && !isTransitioning) {
@@ -1844,19 +1860,20 @@ export default function App() {
 
         {/* HUD - Atmospheric Theme */}
         {(gameState === 'PLAYING' || gameState === 'ESCAPE') && (
-          <div className="absolute inset-0 pointer-events-none p-4 sm:p-6 flex flex-col z-40">
+          <div className="absolute inset-0 pointer-events-none p-2 sm:p-6 flex flex-col z-40 overflow-hidden">
             {/* Top Bar - Compact Integrated Modules */}
-            <div className="flex justify-between items-start w-full gap-4">
+            <div className="flex justify-between items-start w-full gap-2 sm:gap-4 flex-nowrap">
               {/* Left Side: Stats & Weapon */}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:gap-3 shrink-0">
                 {/* Stats Module */}
-                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-3 px-4 rounded-2xl flex items-center gap-6 shadow-2xl">
+                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-4 rounded-xl sm:rounded-2xl flex items-center gap-3 sm:gap-6 shadow-2xl">
                   {/* Health */}
-                  <div className="flex flex-col gap-1 min-w-[120px]">
-                    <div className="flex items-center justify-between text-[7px] font-black tracking-widest uppercase text-rose-500/80">
+                  <div className="flex flex-col gap-1 min-w-[80px] xs:min-w-[90px] sm:min-w-[120px]">
+                    <div className="flex items-center justify-between text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-rose-500/80">
                       <div className="flex items-center gap-1">
-                        <Heart className="w-2 h-2 fill-rose-500" />
-                        <span>Vitality</span>
+                        <Heart className="w-2 h-2 sm:w-2 sm:h-2 fill-rose-500" />
+                        <span className="hidden xs:inline">Vitality</span>
+                        <span className="xs:hidden">HP</span>
                       </div>
                       <span className="text-white/60">{Math.ceil(health)}%</span>
                     </div>
@@ -1869,27 +1886,27 @@ export default function App() {
                   </div>
 
                   {/* Vertical Divider */}
-                  <div className="h-6 w-[1px] bg-white/10" />
+                  <div className="h-5 sm:h-6 w-[1px] bg-white/10" />
 
                   {/* Score */}
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[7px] font-black tracking-widest uppercase text-sky-400/80">Cognition</span>
-                    <span className="text-xl font-mono text-white leading-none tracking-widest font-bold tabular-nums">
+                    <span className="text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-sky-400/80">Cognition</span>
+                    <span className="text-sm sm:text-xl font-mono text-white leading-none tracking-widest font-bold tabular-nums">
                       {score.toString().padStart(6, '0')}
                     </span>
                   </div>
                 </div>
 
                 {/* Arsenal (Compact) */}
-                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-1.5 px-3 rounded-full flex items-center gap-3 shadow-lg self-start">
+                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-1.5 sm:p-1.5 sm:px-3 rounded-full flex items-center gap-2 sm:gap-3 shadow-lg self-start">
                    <Sword className="w-3 h-3 text-white/40" />
-                   <span className="text-[8px] font-black text-white/80 uppercase tracking-tighter italic">{weapon}</span>
-                   <span className="text-[7px] text-white/20 font-bold uppercase tracking-widest bg-white/5 px-1.5 rounded">[Q / E]</span>
+                   <span className="text-[8px] sm:text-[8px] font-black text-white/80 uppercase tracking-tighter italic">{weapon}</span>
+                   <span className="hidden sm:inline text-[7px] text-white/20 font-bold uppercase tracking-widest bg-white/5 px-1.5 rounded">[Q/E]</span>
                 </div>
               </div>
 
               {/* Center: Major Alerts & Announcements */}
-              <div className="flex-1 flex flex-col items-center pt-2">
+              <div className="hidden lg:flex flex-1 flex-col items-center pt-2">
                 <AnimatePresence>
                   {bossMessage && (
                     <motion.div 
@@ -1903,29 +1920,29 @@ export default function App() {
               </div>
 
               {/* Right Side: Navigation & Objectives */}
-              <div className="flex flex-col items-end gap-2">
-                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-3 px-5 rounded-2xl flex flex-col items-end shadow-lg min-w-[140px]">
-                  <span className="text-[7px] text-sky-400 font-bold tracking-[0.4em] uppercase opacity-60">{theme.floor}</span>
-                  <p className="text-white text-base font-black italic tracking-tighter uppercase mb-2 leading-none">{theme.name}</p>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-5 rounded-lg sm:rounded-2xl flex flex-col items-end shadow-lg min-w-[90px] xs:min-w-[110px] sm:min-w-[140px]">
+                  <span className="text-[6px] sm:text-[7px] text-sky-400 font-bold tracking-[0.4em] uppercase opacity-60">{theme.floor}</span>
+                  <p className="text-white text-[10px] xs:text-[11px] sm:text-base font-black italic tracking-tighter uppercase mb-1 sm:mb-2 leading-none">{theme.name}</p>
                   
                   {/* Cleanup Progress */}
                   {!portalOpen ? (
                     <div className="w-full flex items-center gap-2">
-                       <div className="flex-1 h-0.5 bg-white/5 rounded-full overflow-hidden">
+                       <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
                           <motion.div 
                            className="h-full bg-sky-500"
                            animate={{ width: `${(enemiesDefeated / totalEnemies) * 100}%` }}
                           />
                        </div>
-                       <span className="text-[7px] text-slate-500 font-black">{enemiesDefeated}/{totalEnemies}</span>
+                       <span className="text-[6px] sm:text-[7px] text-slate-500 font-black">{enemiesDefeated}/{totalEnemies}</span>
                     </div>
                   ) : (
                     <motion.div 
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      className="flex items-center gap-1.5"
+                      className="flex items-center gap-1 sm:gap-1.5"
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-                      <span className="text-[7px] text-sky-300 font-black uppercase tracking-widest">Portal Active</span>
+                      <div className="w-1.5 h-1.5 sm:w-1.5 sm:h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                      <span className="text-[6px] sm:text-[7px] text-sky-300 font-black uppercase tracking-widest">Portal Active</span>
                     </motion.div>
                   )}
                 </div>
