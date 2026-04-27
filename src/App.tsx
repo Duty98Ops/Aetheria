@@ -91,7 +91,17 @@ const MAPS = [
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,4,4,4,1],
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   ],
-  // Room 4: BOSS ARENA - The Fallen's Sanctum
+  // Room 4: THRONE ASCENT (Corridor)
+  [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,0,0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,4,4,4,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  ],
+  // Room 5: BOSS ARENA - The Fallen's Sanctum
   [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
@@ -100,7 +110,7 @@ const MAPS = [
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,1],
+    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,4,4,1],
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   ]
 ];
@@ -458,7 +468,8 @@ class Player extends Entity {
 
   isCollidingWithTile(level: number[][], gx: number, gy: number) {
     if (gy < 0 || gy >= level.length || gx < 0 || gx >= level[0].length) return true;
-    return level[gy][gx] === 1;
+    const tile = level[gy][gx];
+    return tile === 1 || tile === 4;
   }
 
   checkWallSlide(level: number[][]) {
@@ -988,9 +999,9 @@ class Enemy extends Entity {
     // Check if hit by player attack
     if (player.isAttacking) {
       const attackRect = {
-        x: player.facing === 1 ? player.pos.x + player.width : player.pos.x - 30,
+        x: player.facing === 1 ? player.pos.x + player.width : player.pos.x - 50,
         y: player.pos.y,
-        width: 30,
+        width: 50,
         height: player.height
       };
       if (this.checkCollision(attackRect, this.rect)) {
@@ -1121,7 +1132,7 @@ const TOWER_NODES = [
   { id: 2, label: 'LOOT CHAMBER', type: 'LOOT', connections: [3], room: 1 },
   { id: 3, label: 'VOID REACH', type: 'ELITE', connections: [4], room: 2 },
   { id: 4, label: 'THRONE ASCENT', type: 'BATTLE', connections: [5], room: 3 },
-  { id: 5, label: 'THE FALLEN', type: 'BOSS', connections: [], room: 3 }
+  { id: 5, label: 'THE FALLEN', type: 'BOSS', connections: [], room: 4 }
 ];
 
 // --- MAIN COMPONENT ---
@@ -1339,6 +1350,7 @@ export default function App() {
     engine.projectiles = [];
     engine.escapeActive = false;
     engine.escapeDuration = 60000;
+    setRoom(selectedRoom);
     setPortalOpen(false);
     setBossActive(false);
     setBossMessage(null);
@@ -1359,14 +1371,12 @@ export default function App() {
     setHealth(currentHp);
     setWeapon(currentWeapon);
     engine.particles = [];
-    setPortalOpen(false);
     
     // Create enemies based on room type and scale
     if (type === 'BOSS') {
       // Boss Arena
       engine.enemies = [];
-      engine.boss = new FallenAscendant(2000, 100, scale); // Position near the end of the long arena if needed, or center
-      // Make sure the boss arena is big enough
+      engine.boss = new FallenAscendant(2000, 100, scale);
       engine.boss.pos = new Vector(TILE_SIZE * 20, TILE_SIZE * 4);
       setBossActive(true);
       setBossMaxHP(engine.boss.maxHp);
@@ -1375,12 +1385,12 @@ export default function App() {
       engine.cinematicTimer = 2000;
       setTimeout(() => setBossMessage(null), 3000);
     } else if (type === 'LOOT') {
-      engine.enemies = []; // Calm room
+      engine.enemies = []; 
       setBossMessage("A MOMENT OF PEACE...");
       setTimeout(() => setBossMessage(null), 2000);
     } else {
-      const basicCount = 2 + room;
-      const advancedCount = selectedRoom > 0 ? 1 + Math.floor(room / 2) : 0;
+      const basicCount = 2 + selectedRoom;
+      const advancedCount = selectedRoom > 0 ? 1 + Math.floor(selectedRoom / 2) : 0;
       
       engine.enemies = [];
       for(let i=0; i<basicCount; i++) {
@@ -1394,12 +1404,12 @@ export default function App() {
     setTotalEnemies(engine.enemies.length + (engine.boss ? 1 : 0));
     setEnemiesDefeated(0);
     setGameState('PLAYING');
-    // Persistence: Keep health if moving between nodes
-    if (health <= 0) {
+    
+    if (currentHp <= 0) {
       setHealth(100);
       engine.player.hp = 100;
     } else {
-      engine.player.hp = health;
+      engine.player.hp = currentHp;
     }
     
     setScore(engine.player.score);
@@ -1460,7 +1470,7 @@ export default function App() {
        player.isMagicAttacking = false;
     }
 
-    // Boss Logic
+    // 2. Boss Logic Update
     if (boss) {
       boss.update(player, level, particles, engine);
       setBossHP(boss.hp);
@@ -1470,14 +1480,12 @@ export default function App() {
           engine.escapeActive = true;
           saveGame({ clearedNodes: [...clearedNodes, currentMapNode] });
           setBossMessage("THE FALLEN HAS BEEN DEFEATED");
-          engine.cinematicTimer = 4000; // Longer cinematic for final boss
+          engine.cinematicTimer = 4000;
           setTimeout(() => {
             setBossMessage("ESCAPE THE TOWER!");
             setGameState('ESCAPE');
             engine.escapeDuration = 60000; 
           }, 4000);
-          
-          // Ensure portal opens in final room for escape
           engine.portalOpen = true;
           setPortalOpen(true);
         } else if (!engine.portalOpen) {
@@ -1487,10 +1495,46 @@ export default function App() {
       }
     }
 
-    // Clear Condition: Defeat all enemies to open portal
-    const allEnemiesDead = enemies.every(e => e.isDead) && (!boss || boss.isDead);
+    // 3. Enemy Logic Update
+    enemies.forEach(enemy => {
+      enemy.update(player, level, particles, difficultyScale);
+      
+      // Auto-kill zone safeguard for stuck enemies
+      if (enemy.pos.y > level.length * TILE_SIZE + 200) {
+        enemy.isDead = true;
+      }
+    });
 
-    if (allEnemiesDead && !engine.portalOpen) {
+    // 4. Projectile Logic & Hits
+    engine.projectiles.forEach(p => {
+      p.update(level, engine.camera.x, engine.camera.y);
+      if (p.owner === 'PLAYER') {
+        enemies.forEach(enemy => {
+          if (!enemy.isDead && enemy.checkCollision(p.rect, enemy.rect)) {
+            enemy.takeDamage(15, particles, player);
+            p.isDead = true;
+          }
+        });
+        if (boss && !boss.isDead && boss.checkCollision(p.rect, boss.rect)) {
+          boss.takeDamage(15, particles, player);
+          p.isDead = true;
+        }
+      }
+    });
+
+    // 5. Cleanup & State Sync
+    const activeEnemies = enemies.filter(e => !e.isDead);
+    engine.enemies = activeEnemies;
+    engine.projectiles = engine.projectiles.filter(p => !p.isDead);
+
+    // 6. Progress & Completion Checks
+    const remainingCount = activeEnemies.length + (boss && !boss.isDead ? 1 : 0);
+    const accurateDefeated = Math.max(0, totalEnemies - remainingCount);
+    if (accurateDefeated !== enemiesDefeated) {
+      setEnemiesDefeated(accurateDefeated);
+    }
+
+    if (remainingCount === 0 && !engine.portalOpen) {
       engine.portalOpen = true;
       setPortalOpen(true);
       player.score += 500 * (cycle + 1);
@@ -1500,40 +1544,37 @@ export default function App() {
     if (Math.random() > 0.95) setFlicker(0.8 + Math.random() * 0.4);
     else setFlicker(f => f + (1 - f) * 0.1);
 
-    // Portal Trigger (Checks 4 corners for overlap with cell 4, or simple distance check)
-    const corners = [
-      { x: player.pos.x, y: player.pos.y },
-      { x: player.pos.x + player.width, y: player.pos.y },
-      { x: player.pos.x, y: player.pos.y + player.height },
-      { x: player.pos.x + player.width, y: player.pos.y + player.height },
-      { x: player.pos.x + player.width / 2, y: player.pos.y + player.height / 2 } // Center check
-    ];
-
-    const portalX = (level[0].length - 1.5) * TILE_SIZE;
-    const portalY = (level.length - 2.5) * TILE_SIZE;
-
+    // 7. Portal Interaction
     let touchingPortal = false;
-    // 1. Tile based check (Precise)
-    for (const c of corners) {
-      const gx = Math.floor(c.x / TILE_SIZE);
-      const gy = Math.floor(c.y / TILE_SIZE);
-      if (gy >= 0 && gy < level.length && gx >= 0 && gx < level[0].length) {
-        if (level[gy][gx] === 4) {
-          touchingPortal = true;
-          break;
+    if (engine.portalOpen) {
+      const pRect = { x: player.pos.x, y: player.pos.y, width: player.width, height: player.height };
+      for (let y = 0; y < level.length; y++) {
+        for (let x = 0; x < level[y].length; x++) {
+          if (level[y][x] === 4) {
+             const tx = x * TILE_SIZE;
+             const ty = y * TILE_SIZE;
+             const portalRect = { x: tx - 10, y: ty - 10, width: TILE_SIZE + 20, height: TILE_SIZE + 20 };
+             
+             if (pRect.x < portalRect.x + portalRect.width &&
+                 pRect.x + pRect.width > portalRect.x &&
+                 pRect.y < portalRect.y + portalRect.height &&
+                 pRect.y + pRect.height > portalRect.y) {
+               touchingPortal = true;
+               break;
+             }
+             const dx = (player.pos.x + player.width/2) - (tx + TILE_SIZE/2);
+             const dy = (player.pos.y + player.height/2) - (ty + TILE_SIZE/2);
+             if (Math.abs(dx) < 64 && Math.abs(dy) < 64) {
+               touchingPortal = true;
+               break;
+             }
+          }
         }
+        if (touchingPortal) break;
       }
     }
-
-    // 2. Proximity check (Forgiving fallback)
-    if (!touchingPortal) {
-      const dx = (player.pos.x + player.width / 2) - portalX;
-      const dy = (player.pos.y + player.height / 2) - portalY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 50) touchingPortal = true;
-    }
     
-     if (touchingPortal && engine.portalOpen && !isTransitioning) {
+    if (touchingPortal && !isTransitioning) {
         setIsTransitioning(true);
         const newClearedNodes = [...clearedNodes, currentMapNode];
         setClearedNodes(newClearedNodes);
@@ -1542,12 +1583,12 @@ export default function App() {
           if (gameState === 'ESCAPE') {
             setGameState('ENDING');
           } else {
-             setGameState('UPGRADE'); // Always offer upgrade between rooms
+             setGameState('UPGRADE'); 
           }
           setIsTransitioning(false);
         }, 800);
         return;
-     }
+    }
 
     // Edge of Screen / Room Boundary fallback for long corridors
     if (player.pos.x > (level[0].length * TILE_SIZE) - player.width - 20 && engine.portalOpen && !isTransitioning) {
@@ -1566,33 +1607,6 @@ export default function App() {
        return;
     }
 
-    enemies.forEach(enemy => enemy.update(player, level, particles, difficultyScale));
-    
-    const defeated = enemies.filter(e => e.isDead).length + (boss && boss.isDead ? 1 : 0);
-    if (defeated !== enemiesDefeated) {
-      setEnemiesDefeated(defeated);
-    }
-
-    // Projectile Update
-    engine.projectiles.forEach(p => {
-      p.update(level, engine.camera.x, engine.camera.y);
-      
-      if (p.owner === 'PLAYER') {
-        // Hit enemies
-        enemies.forEach(enemy => {
-          if (!enemy.isDead && enemy.checkCollision(p.rect, enemy.rect)) {
-            enemy.takeDamage(15, particles, player);
-            p.isDead = true;
-          }
-        });
-        // Hit boss
-        if (boss && !boss.isDead && boss.checkCollision(p.rect, boss.rect)) {
-          boss.takeDamage(15, particles, player);
-          p.isDead = true;
-        }
-      }
-    });
-    engine.projectiles = engine.projectiles.filter(p => !p.isDead);
 
     particles.forEach(p => p.update());
     engine.particles = particles.filter(p => p.life > 0);
@@ -1864,11 +1878,11 @@ export default function App() {
             {/* Top Bar - Compact Integrated Modules */}
             <div className="flex justify-between items-start w-full gap-2 sm:gap-4 flex-nowrap">
               {/* Left Side: Stats & Weapon */}
-              <div className="flex flex-col gap-2 sm:gap-3 shrink-0">
+              <div className="flex flex-col gap-3 sm:gap-4 shrink-0">
                 {/* Stats Module */}
-                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-4 rounded-xl sm:rounded-2xl flex items-center gap-3 sm:gap-6 shadow-2xl">
+                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-4 rounded-xl sm:rounded-2xl flex items-center gap-4 sm:gap-6 shadow-2xl">
                   {/* Health */}
-                  <div className="flex flex-col gap-1 min-w-[80px] xs:min-w-[90px] sm:min-w-[120px]">
+                  <div className="flex flex-col gap-1 min-w-[90px] xs:min-w-[100px] sm:min-w-[120px]">
                     <div className="flex items-center justify-between text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-rose-500/80">
                       <div className="flex items-center gap-1">
                         <Heart className="w-2 h-2 sm:w-2 sm:h-2 fill-rose-500" />
@@ -1921,20 +1935,21 @@ export default function App() {
 
               {/* Right Side: Navigation & Objectives */}
               <div className="flex flex-col items-end gap-2 shrink-0">
-                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-5 rounded-lg sm:rounded-2xl flex flex-col items-end shadow-lg min-w-[90px] xs:min-w-[110px] sm:min-w-[140px]">
-                  <span className="text-[6px] sm:text-[7px] text-sky-400 font-bold tracking-[0.4em] uppercase opacity-60">{theme.floor}</span>
-                  <p className="text-white text-[10px] xs:text-[11px] sm:text-base font-black italic tracking-tighter uppercase mb-1 sm:mb-2 leading-none">{theme.name}</p>
+                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-5 rounded-lg sm:rounded-2xl flex flex-col items-end shadow-lg min-w-[100px] xs:min-w-[120px] sm:min-w-[140px] max-w-[45vw] sm:max-w-none">
+                  <span className="text-[7px] sm:text-[7px] text-sky-400 font-bold tracking-[0.4em] uppercase opacity-60 truncate w-full text-right">{theme.floor}</span>
+                  <p className="text-white text-[11px] xs:text-[12px] sm:text-base font-black italic tracking-tighter uppercase mb-1 sm:mb-2 leading-none truncate w-full text-right">{theme.name}</p>
                   
                   {/* Cleanup Progress */}
                   {!portalOpen ? (
                     <div className="w-full flex items-center gap-2">
-                       <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                       <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                           <motion.div 
                            className="h-full bg-sky-500"
+                           initial={{ width: 0 }}
                            animate={{ width: `${(enemiesDefeated / totalEnemies) * 100}%` }}
                           />
                        </div>
-                       <span className="text-[6px] sm:text-[7px] text-slate-500 font-black">{enemiesDefeated}/{totalEnemies}</span>
+                       <span className="text-[7px] sm:text-[7px] text-slate-500 font-black shrink-0">{enemiesDefeated}/{totalEnemies}</span>
                     </div>
                   ) : (
                     <motion.div 
@@ -1942,7 +1957,7 @@ export default function App() {
                       className="flex items-center gap-1 sm:gap-1.5"
                     >
                       <div className="w-1.5 h-1.5 sm:w-1.5 sm:h-1.5 rounded-full bg-sky-400 animate-pulse" />
-                      <span className="text-[6px] sm:text-[7px] text-sky-300 font-black uppercase tracking-widest">Portal Active</span>
+                      <span className="text-[7px] sm:text-[7px] text-sky-300 font-black uppercase tracking-widest">Portal Active</span>
                     </motion.div>
                   )}
                 </div>
