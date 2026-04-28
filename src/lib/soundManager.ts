@@ -115,7 +115,7 @@ class SoundManager {
 
   private fadeIn(audio: HTMLAudioElement, targetVolume: number) {
       let v = 0;
-      const step = 0.02;
+      const step = 0.05;
       const interval = setInterval(() => {
           v += step;
           if (v >= targetVolume) {
@@ -124,7 +124,7 @@ class SoundManager {
           } else {
               audio.volume = v;
           }
-      }, 50);
+      }, 30);
   }
 
   private fadeOut(audio: HTMLAudioElement, callback: () => void) {

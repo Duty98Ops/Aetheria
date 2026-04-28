@@ -62,6 +62,9 @@ class Vector {
   add(v: Vector) { this.x += v.x; this.y += v.y; return this; }
   multiply(s: number) { this.x *= s; this.y *= s; return this; }
   clone() { return new Vector(this.x, this.y); }
+  static dist(v1: Vector, v2: Vector) {
+    return Math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2);
+  }
 }
 
 // --- LEVEL ASSETS & MAPS ---
@@ -1444,22 +1447,36 @@ export default function App() {
       setTimeout(() => setBossMessage(null), 3000);
     } else if (type === 'LOOT') {
       engine.enemies = []; 
-      setBossMessage("A MOMENT OF PEACE...");
+      setTotalEnemies(0);
+      setRoomTitle("Loot Chamber");
+      setBossMessage("REPLENISH YOUR STRENGTH");
+      // Loot chambers should not finish instantly
+      setTimeout(() => {
+        engine.portalOpen = true;
+        setPortalOpen(true);
+        soundManager.playSFX(ASSETS.SFX_PORTAL);
+      }, 3000);
       setTimeout(() => setBossMessage(null), 2000);
     } else {
       // Dynamic Spawning: Find floor tiles
       const floorPositions: Vector[] = [];
-      for (let y = 0; y < engine.level.length; y++) {
+      for (let y = 1; y < engine.level.length; y++) {
         for (let x = 0; x < engine.level[y].length; x++) {
-          if (engine.level[y][x] === 1 && y > 0 && engine.level[y-1][x] === 0) {
+          if (engine.level[y][x] === 1 && engine.level[y-1][x] === 0) {
             // Found a floor tile with air above it
             floorPositions.push(new Vector(x * TILE_SIZE, (y-1) * TILE_SIZE));
           }
         }
       }
 
+      console.log(`[Game] Found ${floorPositions.length} potential floor positions.`);
+
       // Filter positions that are too close to the player start (64, 64)
-      const safePositions = floorPositions.filter(p => Vector.dist(p, new Vector(64,64)) > 200);
+      let safePositions = floorPositions.filter(p => Vector.dist(p, new Vector(64,64)) > 150);
+      if (safePositions.length === 0 && floorPositions.length > 0) {
+        // Fallback for very small rooms
+        safePositions = floorPositions.filter(p => Vector.dist(p, new Vector(64,64)) > 64);
+      }
       
       const basicCount = 2 + selectedRoom;
       const advancedCount = selectedRoom > 0 ? 1 + Math.floor(selectedRoom / 2) : 0;
@@ -1467,7 +1484,10 @@ export default function App() {
       engine.enemies = [];
       
       // Shuffle positions for variety
-      const shuffled = [...(safePositions.length > 0 ? safePositions : floorPositions)].sort(() => Math.random() - 0.5);
+      const sources = safePositions.length > 0 ? safePositions : floorPositions;
+      const shuffled = [...sources].sort(() => Math.random() - 0.5);
+      
+      console.log(`[Game] Spawning ${basicCount} basic and ${advancedCount} advanced enemies into room ${selectedRoom}`);
       
       for(let i=0; i<basicCount && i < shuffled.length; i++) {
         const p = shuffled[i];
