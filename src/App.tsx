@@ -10,14 +10,14 @@ import { soundManager } from './lib/soundManager';
 
 // --- CONSTANTS ---
 const ASSETS = {
-  BGM_MENU: 'https://assets.mixkit.co/music/preview/mixkit-creepy-mysterious-ambient-147.mp3',
-  BGM_GAME: 'https://assets.mixkit.co/music/preview/mixkit-mysterious-dark-cave-81.mp3',
-  BGM_BOSS: 'https://assets.mixkit.co/music/preview/mixkit-epic-heroic-action-music-117.mp3',
-  SFX_SWING: 'https://www.soundfyr.com/assets/sfx/swing.mp3', // Note: using placeholders if these link fail
-  SFX_DASH: 'https://www.soundfyr.com/assets/sfx/dash.mp3',
-  SFX_HIT: 'https://www.soundfyr.com/assets/sfx/hit.mp3',
-  SFX_DEATH: 'https://www.soundfyr.com/assets/sfx/death.mp3',
-  SFX_PORTAL: 'https://www.soundfyr.com/assets/sfx/portal.mp3'
+  BGM_MENU: 'https://cdn.pixabay.com/audio/2022/10/14/audio_9939fecf39.mp3', // Creepy Ambient
+  BGM_GAME: 'https://cdn.pixabay.com/audio/2023/10/16/audio_f5f67b5b7f.mp3', // Dark Fantasy Cave
+  BGM_BOSS: 'https://cdn.pixabay.com/audio/2022/03/10/audio_c3c3a30a7d.mp3', // Epic Combat
+  SFX_SWING: 'https://cdn.pixabay.com/audio/2022/03/15/audio_7322a30b35.mp3', 
+  SFX_DASH: 'https://cdn.pixabay.com/audio/2021/08/04/audio_32c0299f2b.mp3',
+  SFX_HIT: 'https://cdn.pixabay.com/audio/2022/03/10/audio_f139fd1639.mp3',
+  SFX_DEATH: 'https://cdn.pixabay.com/audio/2022/03/10/audio_510a703d98.mp3',
+  SFX_PORTAL: 'https://cdn.pixabay.com/audio/2024/02/22/audio_78453f65e2.mp3'
 };
 const TILE_SIZE = 32;
 const GRAVITY = 0.5;
@@ -1447,15 +1447,35 @@ export default function App() {
       setBossMessage("A MOMENT OF PEACE...");
       setTimeout(() => setBossMessage(null), 2000);
     } else {
+      // Dynamic Spawning: Find floor tiles
+      const floorPositions: Vector[] = [];
+      for (let y = 0; y < engine.level.length; y++) {
+        for (let x = 0; x < engine.level[y].length; x++) {
+          if (engine.level[y][x] === 1 && y > 0 && engine.level[y-1][x] === 0) {
+            // Found a floor tile with air above it
+            floorPositions.push(new Vector(x * TILE_SIZE, (y-1) * TILE_SIZE));
+          }
+        }
+      }
+
+      // Filter positions that are too close to the player start (64, 64)
+      const safePositions = floorPositions.filter(p => Vector.dist(p, new Vector(64,64)) > 200);
+      
       const basicCount = 2 + selectedRoom;
       const advancedCount = selectedRoom > 0 ? 1 + Math.floor(selectedRoom / 2) : 0;
       
       engine.enemies = [];
-      for(let i=0; i<basicCount; i++) {
-        engine.enemies.push(new Enemy(200 + i * 300, 100, 'BASIC', scale));
+      
+      // Shuffle positions for variety
+      const shuffled = [...(safePositions.length > 0 ? safePositions : floorPositions)].sort(() => Math.random() - 0.5);
+      
+      for(let i=0; i<basicCount && i < shuffled.length; i++) {
+        const p = shuffled[i];
+        engine.enemies.push(new Enemy(p.x, p.y, 'BASIC', scale));
       }
-      for(let i=0; i<advancedCount; i++) {
-        engine.enemies.push(new Enemy(400 + i * 400, 100, 'ADVANCED', scale));
+      for(let i=0; i<advancedCount && (i + basicCount) < shuffled.length; i++) {
+        const p = shuffled[i + basicCount];
+        engine.enemies.push(new Enemy(p.x, p.y, 'ADVANCED', scale));
       }
     }
     
@@ -2325,25 +2345,32 @@ export default function App() {
                   
                   <div className="flex flex-col items-center gap-4 sm:gap-6">
                     <button 
-                      onClick={() => resetGame()}
+                      onClick={() => {
+                        soundManager.resume();
+                        resetGame();
+                      }}
                       className="group relative w-full sm:w-auto px-12 sm:px-16 py-4 sm:py-5 bg-rose-600 hover:scale-105 transition-all duration-300 rounded-full flex items-center justify-center overflow-hidden shadow-[0_0_40px_rgba(225,29,72,0.2)]"
                     >
                       <Play className="w-4 h-4 sm:w-5 sm:h-5 text-white mr-3 sm:mr-4 fill-white" />
-                      <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-sm">New Game</span>
+                      <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-sm">Initiate Cycle</span>
                     </button>
                     
                     <div className="flex flex-wrap justify-center gap-4">
                       {hasSave && (
                         <button 
-                          onClick={() => loadGame()}
+                          onClick={() => {
+                            soundManager.resume();
+                            loadGame();
+                          }}
                           className="group relative px-10 sm:px-12 py-3 sm:py-4 bg-slate-800 hover:scale-105 transition-all duration-300 rounded-full flex items-center justify-center overflow-hidden border border-white/10"
                         >
-                          <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-xs">Continue</span>
+                          <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-xs">Continue Journey</span>
                         </button>
                       )}
                       
                       <button 
                         onClick={() => {
+                          soundManager.resume();
                           setGameState('PAUSED');
                           setShowSettings(true);
                         }}
