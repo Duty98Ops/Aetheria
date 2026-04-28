@@ -2017,7 +2017,10 @@ export default function App() {
 
                   {/* Score */}
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-sky-400/80">Cognition</span>
+                    <div className="flex items-center gap-1">
+                      <Zap className="w-2 h-2 text-sky-400 fill-sky-400/20" />
+                      <span className="text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-sky-400/80">Cognition</span>
+                    </div>
                     <span className="text-sm sm:text-xl font-mono text-white leading-none tracking-widest font-bold tabular-nums">
                       {score.toString().padStart(6, '0')}
                     </span>
@@ -2095,49 +2098,65 @@ export default function App() {
 
         {/* Mobile Input Overlay */}
         {touchControlsActive && (gameState === 'PLAYING' || gameState === 'ESCAPE') && (
-          <div className="absolute inset-0 z-50 pointer-events-none flex flex-col justify-end p-6 pb-12 sm:hidden">
+          <div className="absolute inset-0 z-50 pointer-events-none flex flex-col justify-end p-2 pb-6 sm:hidden">
             <div className="flex justify-between items-end w-full pointer-events-auto">
               {/* Movement (Left/Right) */}
-              <div className="flex gap-4">
+              <div className="flex gap-2">
                 <button 
                   onPointerDown={() => handleTouchStart('left')}
                   onPointerUp={() => handleTouchEnd('left')}
-                  className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-14 h-14 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/5 flex items-center justify-center active:bg-white/20 transition-all shadow-xl"
                 >
-                  <ArrowLeft className="w-8 h-8 text-white" />
+                  <ArrowLeft className="w-8 h-8 text-white/80" />
                 </button>
                 <button 
                   onPointerDown={() => handleTouchStart('right')}
                   onPointerUp={() => handleTouchEnd('right')}
-                  className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-14 h-14 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/5 flex items-center justify-center active:bg-white/20 transition-all shadow-xl"
                 >
-                  <ArrowRight className="w-8 h-8 text-white" />
+                  <ArrowRight className="w-8 h-8 text-white/80" />
+                </button>
+              </div>
+
+              {/* Weapon Switch (Floating above right cluster) */}
+              <div className="absolute right-4 bottom-44 flex flex-col gap-2 pointer-events-auto">
+                <button 
+                  onClick={() => {
+                    const engine = engineRef.current;
+                    engine.player.weapon = engine.player.weapon === 'SWORD' ? 'PISTOL' : 'SWORD';
+                    setWeapon(engine.player.weapon);
+                    soundManager.playSFX(ASSETS.SFX_DASH);
+                  }}
+                  className="w-12 h-12 bg-sky-600/20 backdrop-blur-xl rounded-full border border-sky-400/30 flex flex-col items-center justify-center active:scale-95 transition-all shadow-[0_0_15px_rgba(14,165,233,0.2)]"
+                >
+                  <RotateCcw className="w-4 h-4 text-sky-400 mb-0.5" />
+                  <span className="text-[6px] font-black text-sky-400 uppercase tracking-tighter">Swap</span>
                 </button>
               </div>
 
               {/* Actions (Jump, Attack, Dash) */}
-              <div className="flex flex-col gap-4 items-end">
+              <div className="flex flex-col gap-3 items-end">
                 <button 
                   onPointerDown={() => handleTouchStart('jump')}
                   onPointerUp={() => handleTouchEnd('jump')}
-                  className="w-20 h-20 bg-sky-500/20 backdrop-blur-md rounded-full border-2 border-sky-500/40 flex items-center justify-center active:scale-90 transition-transform shadow-[0_0_20px_rgba(14,165,233,0.2)]"
+                  className="w-18 h-18 bg-sky-500/10 backdrop-blur-xl rounded-full border-2 border-sky-500/40 flex items-center justify-center active:scale-90 transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)]"
                 >
-                  <div className="w-6 h-6 border-2 border-sky-400 rounded-sm rotate-45" />
+                  <div className="w-6 h-6 border-2 border-sky-400/60 rounded-sm rotate-45" />
                 </button>
-                <div className="flex gap-4">
+                <div className="flex gap-2">
                   <button 
                     onPointerDown={() => handleTouchStart('dash')}
                     onPointerUp={() => handleTouchEnd('dash')}
-                    className="w-16 h-16 bg-amber-500/20 backdrop-blur-md rounded-2xl border border-amber-500/40 flex items-center justify-center active:scale-90 transition-transform"
+                    className="w-14 h-14 bg-amber-500/10 backdrop-blur-xl rounded-2xl border border-amber-500/40 flex items-center justify-center active:scale-90 transition-all"
                   >
                     <Wind className="w-6 h-6 text-amber-400" />
                   </button>
                   <button 
                     onPointerDown={() => handleTouchStart('attack')}
                     onPointerUp={() => handleTouchEnd('attack')}
-                    className="w-20 h-20 bg-rose-600/40 backdrop-blur-md rounded-3xl border border-rose-500/60 flex items-center justify-center active:scale-95 transition-transform shadow-[0_0_30px_rgba(225,29,72,0.3)]"
+                    className="w-18 h-18 bg-rose-600/30 backdrop-blur-xl rounded-3xl border border-rose-500/50 flex items-center justify-center active:scale-95 transition-all shadow-[0_0_30px_rgba(225,29,72,0.2)]"
                   >
-                    {weapon === 'SWORD' ? <Sword className="w-8 h-8 text-white" /> : <div className="w-6 h-1 bg-white rounded-full" />}
+                    {weapon === 'SWORD' ? <Sword className="w-8 h-8 text-white/90" /> : <Zap className="w-7 h-7 text-sky-400" />}
                   </button>
                 </div>
               </div>
@@ -2145,10 +2164,13 @@ export default function App() {
             
             {/* Pause Hook for Mobile */}
             <button 
-              onClick={() => setGameState('PAUSED')}
-              className="absolute top-4 left-1/2 -translate-x-1/2 p-3 bg-white/5 border border-white/10 rounded-full pointer-events-auto backdrop-blur-sm"
+              onClick={() => {
+                soundManager.resume();
+                setGameState('PAUSED');
+              }}
+              className="absolute top-4 right-4 p-4 bg-slate-950/60 border border-sky-400/30 rounded-full pointer-events-auto backdrop-blur-md shadow-[0_0_15px_rgba(56,189,248,0.2)] active:scale-90 transition-all flex items-center justify-center"
             >
-              <Pause className="w-4 h-4 text-white/40" />
+              <Pause className="w-5 h-5 text-sky-400/80 fill-sky-400/20" />
             </button>
           </div>
         )}
