@@ -3,11 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, RotateCcw, Heart, Coins, Sword, Shield, Zap, Wind, Sparkles, ArrowLeft, ArrowRight, Pause } from 'lucide-react';
+import { Play, RotateCcw, Heart, Coins, Sword, Shield, Zap, Wind, Sparkles, ArrowLeft, ArrowRight, Pause, Settings, Volume2, VolumeX, X, Music } from 'lucide-react';
+import { soundManager } from './lib/soundManager';
 
 // --- CONSTANTS ---
+const ASSETS = {
+  BGM_MENU: 'https://assets.mixkit.co/music/preview/mixkit-creepy-mysterious-ambient-147.mp3',
+  BGM_GAME: 'https://assets.mixkit.co/music/preview/mixkit-mysterious-dark-cave-81.mp3',
+  BGM_BOSS: 'https://assets.mixkit.co/music/preview/mixkit-epic-heroic-action-music-117.mp3',
+  SFX_SWING: 'https://www.soundfyr.com/assets/sfx/swing.mp3', // Note: using placeholders if these link fail
+  SFX_DASH: 'https://www.soundfyr.com/assets/sfx/dash.mp3',
+  SFX_HIT: 'https://www.soundfyr.com/assets/sfx/hit.mp3',
+  SFX_DEATH: 'https://www.soundfyr.com/assets/sfx/death.mp3',
+  SFX_PORTAL: 'https://www.soundfyr.com/assets/sfx/portal.mp3'
+};
 const TILE_SIZE = 32;
 const GRAVITY = 0.5;
 const FRICTION = 0.8;
@@ -328,6 +339,7 @@ class Player extends Entity {
         this.coyoteTimer = 0;
         this.jumpBufferTimer = 0;
         this.spawnJumpParticles(particles, '#fff', 5);
+        soundManager.playSFX(ASSETS.SFX_DASH); // Using dash sound for jump too for now
       } else if (this.wallSliding) {
         this.vel.y = WALL_JUMP_Y;
         this.vel.x = -this.facing * WALL_JUMP_X;
@@ -335,11 +347,13 @@ class Player extends Entity {
         this.wallSliding = false;
         this.jumpBufferTimer = 0;
         this.spawnJumpParticles(particles, '#fff', 5);
+        soundManager.playSFX(ASSETS.SFX_DASH);
       } else if (this.doubleJumpAvailable && this.skills.has('DOUBLE_JUMP')) {
          this.vel.y = JUMP_FORCE;
          this.doubleJumpAvailable = false;
          this.jumpBufferTimer = 0;
          this.spawnJumpParticles(particles, '#fff', 5);
+         soundManager.playSFX(ASSETS.SFX_DASH);
       }
     }
 
@@ -348,6 +362,7 @@ class Player extends Entity {
       this.dashTimer = DASH_DURATION;
       this.dashCooldown = DASH_COOLDOWN_TIME;
       this.invulnerabilityTime = 300;
+      soundManager.playSFX(ASSETS.SFX_DASH);
       delete input['shift'];
     }
 
@@ -404,9 +419,10 @@ class Player extends Entity {
       if (now - this.lastAttackTime > cooldown) {
         this.isAttacking = true;
         this.lastAttackTime = now;
+        soundManager.playSFX(ASSETS.SFX_SWING);
         
         if (this.weapon === 'SWORD') {
-           this.lungeTimer = 150;
+            this.lungeTimer = 150;
         }
         
         setTimeout(() => this.isAttacking = false, 150);
@@ -505,7 +521,11 @@ class Player extends Entity {
     this.hitFlash = 150;
     this.vel.y = -5;
     this.vel.x = -this.facing * 8;
-    if (this.hp <= 0) this.isDead = true;
+    soundManager.playSFX(ASSETS.SFX_HIT);
+    if (this.hp <= 0) {
+        this.isDead = true;
+        soundManager.playSFX(ASSETS.SFX_DEATH);
+    }
   }
 
   isMagicAttacking = false;
@@ -838,6 +858,7 @@ class FallenAscendant extends Entity {
     if (this.hitFlash > 0 || this.state === 'ROAR') return;
     this.hp -= amount;
     this.hitFlash = 100;
+    soundManager.playSFX(ASSETS.SFX_HIT);
     
     for (let i = 0; i < 3; i++) {
       particles.push(new Particle(
@@ -852,6 +873,7 @@ class FallenAscendant extends Entity {
     if (this.hp <= 0) {
       this.isDead = true;
       player.score += 5000;
+      soundManager.playSFX(ASSETS.SFX_DEATH);
       for (let i = 0; i < 50; i++) {
         particles.push(new Particle(
           new Vector(this.pos.x + this.width / 2, this.pos.y + this.height / 2),
@@ -1015,6 +1037,7 @@ class Enemy extends Entity {
     this.hp -= amount;
     this.hitFlash = 100;
     this.pos.x += this.direction * -15; // Knockback
+    soundManager.playSFX(ASSETS.SFX_HIT);
     
     // Hit particles
     for (let i = 0; i < 5; i++) {
@@ -1030,6 +1053,7 @@ class Enemy extends Entity {
     if (this.hp <= 0) {
       this.isDead = true;
       player.score += Math.round(100 * (1 + (player.score / 10000))); // Dynamic score based on progression
+      soundManager.playSFX(ASSETS.SFX_DEATH);
       
       // Death explosion
       for (let i = 0; i < 15; i++) {
@@ -1151,6 +1175,22 @@ export default function App() {
   const [portalOpen, setPortalOpen] = useState(false);
   const [flicker, setFlicker] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Volume state for synced UI
+  const [audioSettings, setAudioSettings] = useState(soundManager.getSettings());
+
+  // --- AUDIO TRIGGERS ---
+  const playSFX = (type: keyof typeof ASSETS) => {
+    // Basic mapping or just use strings
+    switch(type) {
+      case 'SFX_SWING': soundManager.playSFX(ASSETS.SFX_SWING); break;
+      case 'SFX_DASH': soundManager.playSFX(ASSETS.SFX_DASH); break;
+      case 'SFX_HIT': soundManager.playSFX(ASSETS.SFX_HIT); break;
+      case 'SFX_DEATH': soundManager.playSFX(ASSETS.SFX_DEATH); break;
+      case 'SFX_PORTAL': soundManager.playSFX(ASSETS.SFX_PORTAL); break;
+    }
+  };
   const [bossActive, setBossActive] = useState(false);
   const [bossHP, setBossHP] = useState(0);
   const [bossMaxHP, setBossMaxHP] = useState(0);
@@ -1276,6 +1316,7 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      soundManager.resume();
       engineRef.current.input[e.key.toLowerCase()] = true;
       engineRef.current.input[e.key] = true; // Support both for safety
     };
@@ -1311,22 +1352,26 @@ export default function App() {
       if (gameState === 'PLAYING' || gameState === 'ESCAPE') {
         update(time);
       }
+
+      // Check for pause trigger
+      if (engineRef.current.input['escape'] || engineRef.current.input['p']) {
+        if (!showSettings) {
+          if (gameState === 'PLAYING' || gameState === 'ESCAPE') {
+            setGameState('PAUSED');
+          } else if (gameState === 'PAUSED') {
+            setGameState('PLAYING');
+          }
+        } else {
+          setShowSettings(false);
+        }
+        delete engineRef.current.input['escape'];
+        delete engineRef.current.input['p'];
+      }
       
       if (gameState === 'PLAYING' || gameState === 'ESCAPE' || gameState === 'PAUSED') {
         draw(time);
       }
       
-      // Pause check
-      if (engineRef.current.input['escape'] || engineRef.current.input['p']) {
-        if (gameState === 'PLAYING' || gameState === 'ESCAPE') {
-          setGameState('PAUSED');
-        } else if (gameState === 'PAUSED') {
-          setGameState('PLAYING');
-        }
-        delete engineRef.current.input['escape'];
-        delete engineRef.current.input['p'];
-      }
-
       animationId = requestAnimationFrame(loop);
     };
 
@@ -1338,6 +1383,19 @@ export default function App() {
       cancelAnimationFrame(animationId);
     };
   }, [gameState, room, cycle]);
+
+  // --- BGM MANAGEMENT ---
+  useEffect(() => {
+    if (gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'ENDING') {
+      soundManager.playBGM(ASSETS.BGM_MENU);
+    } else if (gameState === 'PLAYING' || gameState === 'ESCAPE') {
+      if (bossActive) {
+        soundManager.playBGM(ASSETS.BGM_BOSS);
+      } else {
+        soundManager.playBGM(ASSETS.BGM_GAME);
+      }
+    }
+  }, [gameState, bossActive]);
 
   const initGame = (selectedRoom: number, type: string = 'BATTLE', nextCycle?: number) => {
     const engine = engineRef.current;
@@ -1538,6 +1596,7 @@ export default function App() {
       engine.portalOpen = true;
       setPortalOpen(true);
       player.score += 500 * (cycle + 1);
+      soundManager.playSFX(ASSETS.SFX_PORTAL);
     }
 
     // Ambient Flicker
@@ -2089,38 +2148,151 @@ export default function App() {
           )}
         </AnimatePresence>
         
-        {/* Pause Menu */}
-        <AnimatePresence>
+        {/* Pause Menu & Settings */}
+        <AnimatePresence mode="wait">
           {gameState === 'PAUSED' && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 z-[110] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center space-y-6 sm:space-y-8 pointer-events-auto p-6"
             >
-              <div className="text-center space-y-1 sm:space-y-2">
-                <h2 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter">Suspended</h2>
-                <p className="text-rose-500 text-[8px] sm:text-[10px] uppercase font-black tracking-[0.6em] sm:tracking-[1em]">Game Paused</p>
-              </div>
-              
-              <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-[280px]">
-                <button 
-                  onClick={() => setGameState('PLAYING')}
-                  className="w-full py-4 sm:py-5 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:scale-105 shadow-xl transition-all text-xs sm:text-sm"
+              {!showSettings ? (
+                <motion.div 
+                  key="pause-main"
+                  initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
+                  className="flex flex-col items-center gap-6 sm:gap-8 w-full max-w-[280px]"
                 >
-                  Resume
-                </button>
-                <button 
-                  onClick={() => initGame(room, TOWER_NODES[currentMapNode].type)}
-                  className="w-full py-4 sm:py-5 bg-slate-800 text-white font-black uppercase tracking-widest rounded-xl border border-white/10 hover:bg-slate-700 text-xs sm:text-sm"
+                  <div className="text-center space-y-1 sm:space-y-2">
+                    <h2 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter">Suspended</h2>
+                    <p className="text-rose-500 text-[8px] sm:text-[10px] uppercase font-black tracking-[0.6em] sm:tracking-[1em]">Game Paused</p>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3 sm:gap-4 w-full">
+                    <button 
+                      onClick={() => setGameState('PLAYING')}
+                      className="w-full py-4 sm:py-5 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:scale-105 shadow-xl transition-all text-xs sm:text-sm"
+                    >
+                      Resume
+                    </button>
+                    <button 
+                      onClick={() => setShowSettings(true)}
+                      className="w-full py-4 sm:py-5 bg-sky-600/20 text-sky-400 font-black uppercase tracking-widest rounded-xl border border-sky-400/30 hover:bg-sky-600/40 text-xs sm:text-sm flex items-center justify-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </button>
+                    <button 
+                      onClick={() => initGame(room, TOWER_NODES[currentMapNode].type)}
+                      className="w-full py-4 sm:py-5 bg-slate-800 text-white font-black uppercase tracking-widest rounded-xl border border-white/10 hover:bg-slate-700 text-xs sm:text-sm"
+                    >
+                      Restart Room
+                    </button>
+                    <button 
+                      onClick={() => setGameState('START')}
+                      className="w-full py-4 sm:py-5 bg-rose-900/40 text-rose-500 font-black uppercase tracking-widest rounded-xl border border-rose-500/30 hover:bg-rose-900/60 text-xs sm:text-sm"
+                    >
+                      Exit to Menu
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="settings-main"
+                  initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                  className="w-full max-w-[320px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-6"
                 >
-                  Restart Room
-                </button>
-                <button 
-                  onClick={() => setGameState('START')}
-                  className="w-full py-4 sm:py-5 bg-rose-900/40 text-rose-500 font-black uppercase tracking-widest rounded-xl border border-rose-500/30 hover:bg-rose-900/60 text-xs sm:text-sm"
-                >
-                  Exit to Menu
-                </button>
-              </div>
+                  <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                    <div className="flex flex-col">
+                      <h3 className="text-xl font-black text-white italic uppercase tracking-tighter leading-none">System Config</h3>
+                      <span className="text-[8px] font-black text-sky-500 uppercase tracking-widest">Audio Optimization</span>
+                    </div>
+                    <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                      <X className="w-5 h-5 text-white/60" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Master Volume */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Master Volume</span>
+                        </div>
+                        <span className="font-mono">{Math.round(audioSettings.masterVolume * 100)}%</span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="1" step="0.01" value={audioSettings.masterVolume} 
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          soundManager.setMasterVolume(v);
+                          setAudioSettings(soundManager.getSettings());
+                        }}
+                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+
+                    {/* Music Volume */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                          <Music className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Music Intensity</span>
+                        </div>
+                        <span className="font-mono">{Math.round(audioSettings.musicVolume * 100)}%</span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="1" step="0.01" value={audioSettings.musicVolume} 
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          soundManager.setMusicVolume(v);
+                          setAudioSettings(soundManager.getSettings());
+                        }}
+                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                      />
+                    </div>
+
+                    {/* SFX Volume */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Combat Feedback</span>
+                        </div>
+                        <span className="font-mono">{Math.round(audioSettings.sfxVolume * 100)}%</span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="1" step="0.01" value={audioSettings.sfxVolume} 
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          soundManager.setSfxVolume(v);
+                          setAudioSettings(soundManager.getSettings());
+                        }}
+                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      />
+                    </div>
+
+                    <div className="pt-2">
+                      <button 
+                        onClick={() => {
+                          soundManager.setMuted(!audioSettings.isMuted);
+                          setAudioSettings(soundManager.getSettings());
+                        }}
+                        className={`w-full py-4 rounded-xl border flex items-center justify-center gap-3 transition-all font-black uppercase tracking-widest text-[10px] ${audioSettings.isMuted ? 'bg-rose-500/20 border-rose-500/50 text-rose-500' : 'bg-sky-500/10 border-sky-400/30 text-sky-400 hover:bg-sky-500/20'}`}
+                      >
+                        {audioSettings.isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        {audioSettings.isMuted ? 'Silence Protocol Active' : 'Audio Transmitting'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => setShowSettings(false)}
+                    className="mt-2 text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] hover:text-white/60 transition-colors"
+                  >
+                    Back to Pause
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -2160,14 +2332,27 @@ export default function App() {
                       <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-sm">New Game</span>
                     </button>
                     
-                    {hasSave && (
+                    <div className="flex flex-wrap justify-center gap-4">
+                      {hasSave && (
+                        <button 
+                          onClick={() => loadGame()}
+                          className="group relative px-10 sm:px-12 py-3 sm:py-4 bg-slate-800 hover:scale-105 transition-all duration-300 rounded-full flex items-center justify-center overflow-hidden border border-white/10"
+                        >
+                          <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-xs">Continue</span>
+                        </button>
+                      )}
+                      
                       <button 
-                        onClick={() => loadGame()}
-                        className="group relative w-full sm:w-auto px-12 sm:px-16 py-4 sm:py-5 bg-slate-800 hover:scale-105 transition-all duration-300 rounded-full flex items-center justify-center overflow-hidden border border-white/10"
+                        onClick={() => {
+                          setGameState('PAUSED');
+                          setShowSettings(true);
+                        }}
+                        className="group relative px-10 sm:px-12 py-3 sm:py-4 bg-white/5 hover:bg-white/10 hover:scale-105 transition-all duration-300 rounded-full flex items-center justify-center overflow-hidden border border-white/10"
                       >
-                        <span className="text-white font-black uppercase tracking-[0.2em] text-xs sm:text-sm">Continue Journey</span>
+                         <Settings className="w-4 h-4 text-white/60 mr-2" />
+                         <span className="text-white/80 font-black uppercase tracking-[0.2em] text-xs sm:text-xs">Settings</span>
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               )}
