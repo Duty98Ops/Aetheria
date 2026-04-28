@@ -1318,6 +1318,19 @@ export default function App() {
 
 
   useEffect(() => {
+    const unlockAudio = () => {
+      soundManager.resume();
+      // On start, if BGM hasn't started yet, force it
+      if (gameState === 'START') {
+        soundManager.playBGM(ASSETS.BGM_MENU);
+      }
+      window.removeEventListener('click', unlockAudio);
+    };
+    window.addEventListener('click', unlockAudio);
+    return () => window.removeEventListener('click', unlockAudio);
+  }, [gameState]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       soundManager.resume();
       engineRef.current.input[e.key.toLowerCase()] = true;
@@ -1448,14 +1461,15 @@ export default function App() {
     } else if (type === 'LOOT') {
       engine.enemies = []; 
       setTotalEnemies(0);
-      setRoomTitle("Loot Chamber");
       setBossMessage("REPLENISH YOUR STRENGTH");
+      engine.portalLock = true;
       // Loot chambers should not finish instantly
       setTimeout(() => {
+        engine.portalLock = false;
         engine.portalOpen = true;
         setPortalOpen(true);
         soundManager.playSFX(ASSETS.SFX_PORTAL);
-      }, 3000);
+      }, 4000);
       setTimeout(() => setBossMessage(null), 2000);
     } else {
       // Dynamic Spawning: Find floor tiles
@@ -1632,7 +1646,7 @@ export default function App() {
       setEnemiesDefeated(accurateDefeated);
     }
 
-    if (remainingCount === 0 && !engine.portalOpen) {
+    if (remainingCount === 0 && !engine.portalOpen && !engine.portalLock) {
       engine.portalOpen = true;
       setPortalOpen(true);
       player.score += 500 * (cycle + 1);
@@ -2346,6 +2360,15 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-[100] pointer-events-auto flex flex-col items-center justify-center h-full text-center space-y-8 bg-black/40 p-12"
             >
+              {(gameState === 'MAP' || gameState === 'UPGRADE') && (
+                <button 
+                  onClick={() => setGameState('START')}
+                  className="absolute top-6 left-6 flex items-center gap-2 text-white/40 hover:text-white transition-colors group z-[110]"
+                >
+                  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Main Menu</span>
+                </button>
+              )}
               {gameState === 'START' && (
                 <div className="space-y-6 sm:space-y-10 w-full max-w-2xl">
                   <div className="space-y-2 sm:space-y-4">
