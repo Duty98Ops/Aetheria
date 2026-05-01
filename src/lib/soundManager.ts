@@ -77,8 +77,11 @@ class SoundManager {
   }
 
   private updateVolumes() {
+    const targetMusicVolume = this.isMuted ? 0 : this.masterVolume * this.musicVolume;
     if (this.bgm) {
-      this.bgm.volume = this.isMuted ? 0 : this.masterVolume * this.musicVolume;
+      if (this.bgm.volume !== targetMusicVolume) {
+        this.bgm.volume = targetMusicVolume;
+      }
     }
   }
 
@@ -86,26 +89,39 @@ class SoundManager {
    * Plays background music with smooth transition
    */
   playBGM(url: string) {
+    if (!url) return;
+    
     // Prevent re-playing the same BGM
-    if (this.bgm && this.bgm.src.includes(url)) {
-        if (this.bgm.paused) this.bgm.play().catch(() => {});
+    // We check endsWith or includes but carefully
+    if (this.bgm && (this.bgm.src === url || this.bgm.src.endsWith(url))) {
+        if (this.bgm.paused) {
+          this.bgm.play().catch(() => {
+            console.warn("BGM play failed - interaction required");
+          });
+        }
         return;
     }
 
     const startNewBGM = () => {
-        this.bgm = new Audio(url);
+        this.bgm = new Audio();
+        this.bgm.src = url;
         this.bgm.loop = true;
-        this.bgm.volume = 0; // Start for fade in
-        this.bgm.play().then(() => {
-            this.fadeIn(this.bgm!, this.isMuted ? 0 : this.masterVolume * this.musicVolume);
-        }).catch(e => {
-            console.log("Audio play blocked: awaiting user interaction.");
-        });
+        this.bgm.volume = 0;
+        
+        const playPromise = this.bgm.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+              this.fadeIn(this.bgm!, this.isMuted ? 0 : this.masterVolume * this.musicVolume);
+          }).catch(e => {
+              console.warn("Audio play blocked: awaiting user interaction.", e);
+          });
+        }
     };
 
     if (this.bgm) {
         this.fadeOut(this.bgm, () => {
             this.bgm?.pause();
+            this.bgm = null; // Clear old BGM
             startNewBGM();
         });
     } else {
@@ -114,11 +130,12 @@ class SoundManager {
   }
 
   private fadeIn(audio: HTMLAudioElement, targetVolume: number) {
+      if (audio.paused) return; // Don't fade in if not playing
       let v = 0;
       const step = 0.05;
       const interval = setInterval(() => {
           v += step;
-          if (v >= targetVolume) {
+          if (v >= targetVolume || audio.paused) {
               audio.volume = targetVolume;
               clearInterval(interval);
           } else {
@@ -129,7 +146,7 @@ class SoundManager {
 
   private fadeOut(audio: HTMLAudioElement, callback: () => void) {
       let v = audio.volume;
-      const step = 0.05;
+      const step = 0.1;
       const interval = setInterval(() => {
           v -= step;
           if (v <= 0) {
@@ -139,7 +156,7 @@ class SoundManager {
           } else {
               audio.volume = v;
           }
-      }, 50);
+      }, 30);
   }
 
   /**
@@ -160,7 +177,6 @@ class SoundManager {
         sfx = new Audio(url);
         pool.push(sfx);
       } else {
-        // Reuse the oldest one if pool is full and everything is playing
         sfx = pool[0];
         sfx.pause();
         sfx.currentTime = 0;
@@ -170,18 +186,24 @@ class SoundManager {
     }
 
     sfx.volume = this.masterVolume * this.sfxVolume;
-    sfx.play().catch(e => {
-        // Silently fail if blocked
-    });
+    const playPromise = sfx.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(e => {
+          // Silently fail
+      });
+    }
   }
 
   /**
-   * Resumes audio after user interaction
+   * Resumes audio after user interaction. 
+   * Crucial for solving "Autoplay" blocks.
    */
   resume() {
     if (this.bgm && this.bgm.paused) {
       this.bgm.play().catch(() => {});
     }
+    // Also try to prime SFX by playing a silent or very short sound if needed?
+    // Usually one successful play opens the gate for all.
   }
 
   getSettings() {

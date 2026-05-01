@@ -10,9 +10,9 @@ import { soundManager } from './lib/soundManager';
 
 // --- CONSTANTS ---
 const ASSETS = {
-  BGM_MENU: 'https://cdn.pixabay.com/audio/2022/10/14/audio_9939fecf39.mp3', // Creepy Ambient
-  BGM_GAME: 'https://cdn.pixabay.com/audio/2023/10/16/audio_f5f67b5b7f.mp3', // Dark Fantasy Cave
-  BGM_BOSS: 'https://cdn.pixabay.com/audio/2022/03/10/audio_c3c3a30a7d.mp3', // Epic Combat
+  BGM_MENU: 'https://assets.mixkit.co/music/preview/mixkit-creepy-mysterious-ambient-147.mp3', // Creepy Ambient
+  BGM_GAME: 'https://assets.mixkit.co/music/preview/mixkit-mysterious-dark-cave-81.mp3', // Dark Fantasy Cave
+  BGM_BOSS: 'https://assets.mixkit.co/music/preview/mixkit-epic-heroic-action-music-117.mp3', // Epic Combat
   SFX_SWING: 'https://cdn.pixabay.com/audio/2022/03/15/audio_7322a30b35.mp3', 
   SFX_DASH: 'https://cdn.pixabay.com/audio/2021/08/04/audio_32c0299f2b.mp3',
   SFX_HIT: 'https://cdn.pixabay.com/audio/2022/03/10/audio_f139fd1639.mp3',
@@ -1314,21 +1314,9 @@ export default function App() {
     cinematicTimer: 0,
     escapeActive: false,
     escapeDuration: 60000,
+    portalLock: false,
+    roomTimeout: null as any,
   });
-
-
-  useEffect(() => {
-    const unlockAudio = () => {
-      soundManager.resume();
-      // On start, if BGM hasn't started yet, force it
-      if (gameState === 'START') {
-        soundManager.playBGM(ASSETS.BGM_MENU);
-      }
-      window.removeEventListener('click', unlockAudio);
-    };
-    window.addEventListener('click', unlockAudio);
-    return () => window.removeEventListener('click', unlockAudio);
-  }, [gameState]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1402,7 +1390,23 @@ export default function App() {
 
   // --- BGM MANAGEMENT ---
   useEffect(() => {
-    if (gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'ENDING') {
+    // Basic unlock listener for standard browser policies
+    const unlock = () => {
+      soundManager.resume();
+      if (gameState === 'START') {
+        soundManager.playBGM(ASSETS.BGM_MENU);
+      }
+    };
+    window.addEventListener('click', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'ENDING' || gameState === 'PAUSED') {
       soundManager.playBGM(ASSETS.BGM_MENU);
     } else if (gameState === 'PLAYING' || gameState === 'ESCAPE') {
       if (bossActive) {
@@ -1415,11 +1419,19 @@ export default function App() {
 
   const initGame = (selectedRoom: number, type: string = 'BATTLE', nextCycle?: number) => {
     const engine = engineRef.current;
+    
+    // Clear any pending room-specific timeouts to prevent stage skipping bugs
+    if (engine.roomTimeout) {
+      clearTimeout(engine.roomTimeout);
+      engine.roomTimeout = null;
+    }
+
     const currentCycle = nextCycle ?? cycle;
     const scale = 1 + (currentCycle * CYCLE_DIFFICULTY_STEP) + (selectedRoom * 0.15);
     engine.difficultyScale = scale;
     engine.level = JSON.parse(JSON.stringify(MAPS[selectedRoom]));
     engine.portalOpen = false;
+    engine.portalLock = false;
     engine.boss = null;
     engine.projectiles = [];
     engine.escapeActive = false;
@@ -1457,14 +1469,14 @@ export default function App() {
       setBossHP(engine.boss.hp);
       setBossMessage("YOU HAVE REACHED THE THRONE");
       engine.cinematicTimer = 2000;
-      setTimeout(() => setBossMessage(null), 3000);
+      engine.roomTimeout = setTimeout(() => setBossMessage(null), 3000);
     } else if (type === 'LOOT') {
       engine.enemies = []; 
       setTotalEnemies(0);
       setBossMessage("REPLENISH YOUR STRENGTH");
       engine.portalLock = true;
       // Loot chambers should not finish instantly
-      setTimeout(() => {
+      engine.roomTimeout = setTimeout(() => {
         engine.portalLock = false;
         engine.portalOpen = true;
         setPortalOpen(true);
