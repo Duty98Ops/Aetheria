@@ -40,10 +40,10 @@ const SAVE_KEY = 'aetheria_fallen_ascent_save';
 const CYCLE_DIFFICULTY_STEP = 0.2; // Slightly gentler scaling
 
 const THEMES = [
-  { name: 'ENTRANCE OF CORRUPTION', floor: 'FLOOR 1', primary: '#10b981', background: '#020617', secondary: '#064e3b', particle: '#059669', runes: 'rgba(16, 185, 129, 0.2)', ambient: 'rgba(16, 185, 129, 0.05)' },
-  { name: 'BLOOD CAVERNS', floor: 'FLOOR 2', primary: '#ef4444', background: '#090000', secondary: '#450a0a', particle: '#7f1d1d', runes: 'rgba(239, 68, 68, 0.2)', ambient: 'rgba(239, 68, 68, 0.05)' },
-  { name: 'ABYSSAL HALL', floor: 'FLOOR 3', primary: '#a855f7', background: '#020617', secondary: '#1e1b4b', particle: '#6366f1', runes: 'rgba(168, 85, 247, 0.2)', ambient: 'rgba(168, 85, 247, 0.05)' },
-  { name: 'THRONE OF THE FALLEN', floor: 'FINAL FLOOR', primary: '#ffffff', background: '#000000', secondary: '#111827', particle: '#ffffff', runes: 'rgba(255, 255, 255, 0.1)', ambient: 'rgba(255, 255, 255, 0.05)' }
+  { name: 'GRAVEYARD OF HEROES', floor: 'CHAMBER I', primary: '#94a3b8', background: '#020617', secondary: '#1e1b4b', particle: '#475569', runes: 'rgba(148, 163, 184, 0.1)', ambient: 'rgba(10, 15, 30, 0.4)' },
+  { name: 'CARNIAN BLOOD SANCTUM', floor: 'CHAMBER II', primary: '#ef4444', background: '#0c0202', secondary: '#450a0a', particle: '#7f1d1d', runes: 'rgba(239, 68, 68, 0.05)', ambient: 'rgba(50, 5, 5, 0.5)' },
+  { name: 'SHATTERED ACADEMY', floor: 'CHAMBER III', primary: '#38bdf8', background: '#020617', secondary: '#0c4a6e', particle: '#0ea5e9', runes: 'rgba(56, 189, 248, 0.1)', ambient: 'rgba(5, 20, 40, 0.6)' },
+  { name: 'THRONE OF THE ELDERBORN', floor: 'THE APEX', primary: '#fbbf24', background: '#000000', secondary: '#451a03', particle: '#f59e0b', runes: 'rgba(251, 191, 36, 0.1)', ambient: 'rgba(30, 20, 5, 0.7)' }
 ];
 
 // --- TYPES ---
@@ -131,6 +131,91 @@ const MAPS = [
 
 
 // --- GAME LOGIC ---
+
+// --- CLOTH SIMULATION ---
+class CapePoint {
+  constructor(public x: number, public y: number) {
+    this.oldX = x;
+    this.oldY = y;
+  }
+  public oldX: number;
+  public oldY: number;
+  public accX = 0;
+  public accY = 0;
+}
+
+class Cape {
+  public points: CapePoint[] = [];
+  public length = 6;
+  public spacing = 5;
+
+  constructor(x: number, y: number) {
+    for (let i = 0; i < this.length; i++) {
+      this.points.push(new CapePoint(x, y + i * this.spacing));
+    }
+  }
+
+  update(anchorX: number, anchorY: number, facing: number, velX: number) {
+    // Pin first point
+    this.points[0].x = anchorX;
+    this.points[0].y = anchorY;
+
+    // Wind and movement physics
+    const wind = Math.sin(Date.now() / 200) * 2;
+    const drag = -velX * 0.5;
+
+    for (let i = 1; i < this.points.length; i++) {
+      const p = this.points[i];
+      const vx = (p.x - p.oldX) * 0.9;
+      const vy = (p.y - p.oldY) * 0.9;
+
+      p.oldX = p.x;
+      p.oldY = p.y;
+
+      p.x += vx + wind + drag;
+      p.y += vy + 0.5; // Gravity
+    }
+
+    // Constraints
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < this.points.length - 1; j++) {
+            const p1 = this.points[j];
+            const p2 = this.points[j + 1];
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const diff = (this.spacing - dist) / dist;
+            const ox = dx * diff * 0.5;
+            const oy = dy * diff * 0.5;
+            if (j > 0) {
+              p1.x -= ox;
+              p1.y -= oy;
+            }
+            p2.x += ox;
+            p2.y += oy;
+        }
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D, camera: Vector, color: string) {
+    ctx.beginPath();
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = color;
+    ctx.moveTo(this.points[0].x - camera.x, this.points[0].y - camera.y);
+    for (let i = 1; i < this.points.length; i++) {
+      ctx.lineTo(this.points[i].x - camera.x, this.points[i].y - camera.y);
+    }
+    ctx.stroke();
+    
+    // Tattered edges
+    ctx.globalAlpha = 0.4;
+    ctx.lineWidth = 16;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
 
 class Particle {
   public life = 1.0;
@@ -244,11 +329,24 @@ class Player extends Entity {
   public dashTimer = 0;
   public dashCooldown = 0;
   public magicCooldown = 0;
-  public skills = new Set<string>();
-  public hitFlash = 0;
   public lungeTimer = 0;
+  public hitFlash = 0;
+  public skills = new Set<string>();
+  public cape: Cape;
+  
+  constructor() {
+    super();
+    this.cape = new Cape(0, 0);
+  }
 
   update(input: { [key: string]: boolean }, level: number[][], particles: Particle[]) {
+    // Cape update
+    this.cape.update(
+        this.pos.x + (this.facing === 1 ? 4 : this.width - 4), 
+        this.pos.y + 12, 
+        this.facing, 
+        this.vel.x
+    );
     // Timers
     if (this.coyoteTimer > 0) this.coyoteTimer -= 16;
     if (this.jumpBufferTimer > 0) this.jumpBufferTimer -= 16;
@@ -539,103 +637,111 @@ class Player extends Entity {
 
     if (this.invulnerabilityTime > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
     
-    // Hit flash
-    if (this.hitFlash > 0) {
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(screenX, screenY, this.width, this.height);
-      return;
-    }
+    // Atmospheric Glow around player
+    ctx.save();
+    const aura = ctx.createRadialGradient(screenX + this.width/2, screenY + this.height/2, 0, screenX + this.width/2, screenY + this.height/2, 100);
+    aura.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+    aura.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = aura;
+    ctx.fillRect(screenX - 50, screenY - 50, this.width + 100, this.height + 100);
+    ctx.restore();
 
-    // High-Quality Dark Fantasy Player Silhouette
+    // Cape Draw
+    this.cape.draw(ctx, camera, '#450606');
+
+    // Fallen Knight Silhouette
     const bounce = Math.sin(this.animFrame) * 2;
     const lungeX = this.lungeTimer > 0 ? this.facing * 8 : 0;
     
     ctx.save();
     ctx.translate(screenX + Math.floor(this.width/2) + lungeX, screenY + this.height);
     
-    if (this.dashTimer > 0) {
-      ctx.scale(1.4, 0.7);
-    }
+    // Armor Frame
+    ctx.fillStyle = '#0f172a'; // Deep Obsidian
+    ctx.strokeStyle = '#334155'; // Worn Iron
+    ctx.lineWidth = 1.5;
     
-    // Cape - Dynamic flowing physics simulation
-    ctx.fillStyle = '#450a0a'; // Deep Blood Red
+    // Body Armor (Plates)
+    const bodyH = this.isCrouching ? 16 : 28;
+    const bodyY = this.isCrouching ? -16 : -36;
+    
+    // Chest Plate
     ctx.beginPath();
-    const capeW = 16 + Math.abs(this.vel.x) * 2;
-    const capeH = this.isCrouching ? 15 : 32;
-    const currentWind = Math.sin(this.animFrame * 2.5) * 6;
-    ctx.moveTo(-8, this.isCrouching ? -12 : -30);
-    ctx.bezierCurveTo(
-      -12 - this.vel.x * 2, -20, 
-      -capeW - this.vel.x * 3 + currentWind, -10, 
-      -10 - this.vel.x * 2, 0
-    );
-    ctx.fill();
-
-    // Body / Plate Armor
-    ctx.fillStyle = '#1e293b'; // Slate Dark Metal
-    ctx.strokeStyle = '#4ade80'; // Neon accent
-    ctx.lineWidth = 1;
-    const bodyH = this.isCrouching ? 16 : 26;
-    const bodyY = this.isCrouching ? -16 : -34;
-    ctx.beginPath();
-    ctx.roundRect(-11, bodyY + bounce, 22, bodyH, 4);
+    ctx.roundRect(-12, bodyY + bounce, 24, bodyH, 4);
     ctx.fill();
     ctx.stroke();
-
-    // Helmet
-    ctx.fillStyle = '#334155';
-    const headY = this.isCrouching ? -28 : -46;
-    ctx.beginPath();
-    ctx.roundRect(-9, headY + bounce, 18, 14, 6);
-    ctx.fill();
     
-    // Visor
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-7, headY + 4 + bounce, 14, 3);
+    // Rust details
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#7c2d12'; // Rust
+    ctx.fillRect(-10, bodyY + 5 + bounce, 8, 4);
+    ctx.fillRect(2, bodyY + 15 + bounce, 6, 3);
+    ctx.globalAlpha = 1.0;
 
-    // Glowing Eyes
-    ctx.fillStyle = '#4ade80';
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#4ade80';
-    const eyeX = this.facing === 1 ? 2 : -6;
-    const eyeY_pos = this.isCrouching ? -22 : -40;
-    ctx.fillRect(eyeX, eyeY_pos + bounce, 4, 3);
+    // Great Helmet
+    const headY = this.isCrouching ? -28 : -48;
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.roundRect(-10, headY + bounce, 20, 16, 4);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Visor Slit
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-8, headY + 6 + bounce, 16, 4);
+
+    // Soul Glow (Eyes)
+    ctx.fillStyle = '#fbbf24';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#d97706';
+    const eyeOffsetX = this.facing === 1 ? 2 : -6;
+    ctx.fillRect(eyeOffsetX, headY + 6 + bounce, 4, 3);
     ctx.shadowBlur = 0;
 
-    // Current Weapon Visual
+    // Rusted Greatsword / Staff
     ctx.save();
-    const weaponX = this.facing === 1 ? 10 : -14;
-    ctx.translate(weaponX, -22 + bounce);
+    const weaponX = this.facing === 1 ? 12 : -18;
+    const weaponRot = Math.sin(this.animFrame * 0.5) * 0.1;
+    ctx.translate(weaponX, -20 + bounce);
+    ctx.rotate(weaponRot);
+    
     if (this.weapon === 'SWORD') {
-      ctx.fillStyle = '#94a3b8';
+      // Greatsword
+      ctx.fillStyle = '#475569'; // Steel
       ctx.beginPath();
-      ctx.moveTo(0, 0); ctx.lineTo(4, -20); ctx.lineTo(8, 0); ctx.fill(); // Greatsword shape
+      ctx.moveTo(0, 0); ctx.lineTo(-2, -40); ctx.lineTo(6, -40); ctx.lineTo(4, 0); ctx.fill();
+      // Edge wear
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
     } else {
-      ctx.fillStyle = '#334155';
-      ctx.roundRect(0, 0, 10, 6, 2); ctx.fill(); // Pistol
+      // Iron Arbalest
+      ctx.fillStyle = '#2d1a0a';
+      ctx.fillRect(0, 0, 14, 8);
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(2, -4, 10, 4);
     }
     ctx.restore();
     
-    // Combat Effects
+    // Combat Feedback Effects
     if (this.isAttacking) {
       ctx.save();
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = this.weapon === 'SWORD' ? 'rgba(255,255,255,0.5)' : '#38bdf8';
-      
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
       if (this.weapon === 'SWORD') {
-        const slashGrad = ctx.createRadialGradient(0, -20, 10, 0, -20, 50);
-        slashGrad.addColorStop(0, 'rgba(255,255,255,0.8)');
-        slashGrad.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = slashGrad;
+        const slash = ctx.createLinearGradient(0, -40, this.facing * 60, 0);
+        slash.addColorStop(0, 'rgba(255,255,255,0.9)');
+        slash.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = slash;
         ctx.beginPath();
-        if (this.facing === 1) ctx.arc(0, -20, 45, -Math.PI/3, Math.PI/3);
-        else ctx.arc(0, -20, 45, 2*Math.PI/3, 4*Math.PI/3);
+        if (this.facing === 1) ctx.arc(0, -25, 60, -Math.PI/2, Math.PI/2);
+        else ctx.arc(0, -25, 60, Math.PI/2, 3*Math.PI/2);
         ctx.fill();
       } else {
-        // Muzzle Flash
-        const flashX = this.facing === 1 ? 25 : -35;
         ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(flashX, -18, 10, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.facing * 30, -18, 12, 0, Math.PI*2);
+        ctx.fill();
       }
       ctx.restore();
     }
@@ -896,71 +1002,72 @@ class FallenAscendant extends Entity {
 
     // Telegraph
     if (this.telegraphRect) {
-      ctx.fillStyle = 'rgba(225, 29, 72, 0.15)';
+      ctx.fillStyle = 'rgba(225, 29, 72, 0.1)';
       ctx.fillRect(this.telegraphRect.x - camera.x, this.telegraphRect.y - camera.y, this.telegraphRect.width, this.telegraphRect.height);
-      ctx.strokeStyle = 'rgba(225, 29, 72, 0.4)';
-      ctx.strokeRect(this.telegraphRect.x - camera.x, this.telegraphRect.y - camera.y, this.telegraphRect.width, this.telegraphRect.height);
     }
 
     if (this.hitFlash > 0) {
-      ctx.fillStyle = '#ef4444';
+      ctx.fillStyle = '#fff';
       ctx.fillRect(sX, sY, this.width, this.height);
       return;
     }
 
-    // Demon King - Dark Fantasy Titan with Armor
+    // Great Lord of the Void - Towering Knight
     ctx.save();
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = this.phase === 2 ? '#f43f5e' : '#991b1b';
+    const bounce = Math.sin(this.animFrame * 0.5) * 10;
     
-    // Armor base
-    ctx.fillStyle = '#0f172a';
-    ctx.roundRect(sX, sY, this.width, this.height, 10);
+    // Cape / Robes
+    ctx.fillStyle = '#450a0a';
+    ctx.beginPath();
+    ctx.moveTo(sX + 10, sY + 20 + bounce);
+    ctx.lineTo(sX - 40, sY + this.height + bounce);
+    ctx.lineTo(sX + this.width + 40, sY + this.height + bounce);
+    ctx.lineTo(sX + this.width - 10, sY + 20 + bounce);
     ctx.fill();
+
+    // Bulky Plate Armor
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(sX, sY + bounce, this.width, this.height, 8);
+    ctx.fill();
+    ctx.stroke();
     
-    // Glowing Core / Armor Runes
-    ctx.fillStyle = this.phase === 2 ? '#f43f5e' : '#ef4444';
-    ctx.globalAlpha = 0.5 + Math.sin(this.animFrame * 5) * 0.3;
-    ctx.fillRect(sX + 15, sY + 45, 34, 4);
-    ctx.fillRect(sX + 20, sY + 55, 24, 4);
+    // Glowing Blue Runes (Void Essence)
+    ctx.beginPath();
+    ctx.strokeStyle = '#0ea5e9';
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.5 + Math.sin(this.animFrame * 4) * 0.3;
+    ctx.moveTo(sX + 10, sY + 40 + bounce);
+    ctx.lineTo(sX + 54, sY + 40 + bounce);
+    ctx.stroke();
     ctx.globalAlpha = 1.0;
 
-    // Horns - Large and Menacing
-    ctx.fillStyle = '#020617';
+    // Helm
+    ctx.fillStyle = '#1e293b';
     ctx.beginPath();
-    // Left Horn
-    ctx.moveTo(sX + 10, sY + 10);
-    ctx.quadraticCurveTo(sX - 30, sY - 40, sX + 5, sY - 50);
-    ctx.lineTo(sX + 20, sY);
-    // Right Horn
-    ctx.moveTo(sX + 54, sY + 10);
-    ctx.quadraticCurveTo(sX + 94, sY - 40, sX + 59, sY - 50);
-    ctx.lineTo(sX + 44, sY);
+    ctx.roundRect(sX + 12, sY - 20 + bounce, 40, 40, 4);
     ctx.fill();
-
-    // Eyes - Void Piercing
-    ctx.fillStyle = this.phase === 2 ? '#fff' : '#ef4444';
-    const eyeSize = this.state === 'ROAR' ? 18 : 12;
-    ctx.shadowBlur = 15;
-    ctx.fillRect(sX + 10, sY + 20, eyeSize, eyeSize);
-    ctx.fillRect(sX + 42, sY + 20, eyeSize, eyeSize);
+    ctx.stroke();
     
-    // Laser Beam Visual
-    if (this.laserActive) {
-      const lW = 800;
-      const lH = 50;
-      const lY = sY + this.height/2 - lH/2;
-      const lX = this.facing === 1 ? sX + this.width : sX - lW;
-      const bColor = this.phase === 2 ? 'rgba(244, 63, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)';
-      
-      ctx.fillStyle = bColor;
-      ctx.shadowBlur = 20;
-      ctx.fillRect(lX, lY, lW, lH);
-      ctx.fillStyle = '#fff';
-      ctx.globalAlpha = 0.6;
-      ctx.fillRect(lX, lY + 20, lW, 10);
-      ctx.globalAlpha = 1.0;
-    }
+    // Burning Eyes
+    ctx.fillStyle = '#fbbf24';
+    ctx.shadowBlur = 20; ctx.shadowColor = '#f59e0b';
+    ctx.fillRect(sX + 22, sY - 5 + bounce, 6, 4);
+    ctx.fillRect(sX + 36, sY - 5 + bounce, 6, 4);
+    ctx.shadowBlur = 0;
+
+    // Great Weapon (Void Scythe)
+    ctx.save();
+    ctx.translate(sX + this.width, sY + 40 + bounce);
+    ctx.rotate(Math.sin(this.animFrame) * 0.2);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(-2, -40, 4, 120); // Shaft
+    ctx.fillStyle = '#0ea5e9';
+    ctx.beginPath();
+    ctx.moveTo(0, -40); ctx.quadraticCurveTo(60, -80, 80, -20); ctx.lineTo(0, -20); ctx.fill();
+    ctx.restore();
     
     ctx.restore();
   }
@@ -1074,6 +1181,17 @@ class Enemy extends Entity {
         this.takeDamage(20, particles, player);
       }
     }
+
+    // Abyssal Aura (Ambient Particles)
+    if (Math.random() < 0.15) {
+      particles.push(new Particle(
+        new Vector(this.pos.x + Math.random() * this.width, this.pos.y + Math.random() * this.height),
+        new Vector((Math.random() - 0.5) * 0.5, -Math.random() * 1.5),
+        this.type === 'ELITE' ? '#38bdf8' : '#000', // Elite Sentinel has blue void aura
+        2 + Math.random() * 2,
+        0.02
+      ));
+    }
   }
 
   takeDamage(amount: number, particles: Particle[], player: Player) {
@@ -1101,12 +1219,13 @@ class Enemy extends Entity {
       player.score += Math.round(scoreGain * (1 + (player.score / 10000))); // Dynamic score based on progression
       soundManager.playSFX(ASSETS.SFX_DEATH);
       
-      // Death explosion
+      // Soul Fragment Dissipation (Death)
+      const explosionColor = this.type === 'ELITE' ? '#38bdf8' : '#fbbf24';
       for (let i = 0; i < (this.type === 'ELITE' ? 30 : 15); i++) {
         particles.push(new Particle(
           new Vector(this.pos.x + this.width / 2, this.pos.y + this.height / 2),
           new Vector((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
-          '#fbbf24',
+          explosionColor,
           this.type === 'ELITE' ? 6 : 4,
           0.02
         ));
@@ -1137,83 +1256,50 @@ class Enemy extends Entity {
     if (this.isDead) return;
     const screenX = Math.floor(this.pos.x - camera.x);
     const screenY = Math.floor(this.pos.y - camera.y);
-
     ctx.save();
-    if (this.hitFlash > 0) {
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(screenX, screenY, this.width, this.height);
-      ctx.restore();
-      return;
-    }
-
+    
     if (this.type === 'BASIC') {
-      // Dark Slime monster
-      const squash = Math.sin(this.animFrame * 2) * 5;
-      ctx.fillStyle = '#064e3b';
-      ctx.beginPath();
-      ctx.ellipse(screenX + 16, screenY + 20 + squash/2, 18 + squash, 12 - squash, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Eyes (Glowing)
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(screenX + 10, screenY + 16, 4, 4);
-      ctx.fillRect(screenX + 18, screenY + 16, 4, 4);
-    } else if (this.type === 'ADVANCED') {
-      // Wraith Style
-      const hover = Math.sin(this.animFrame) * 8;
-      ctx.fillStyle = 'rgba(168, 85, 247, 0.4)'; // Ghostly Purple
-      ctx.beginPath();
-      ctx.moveTo(screenX + 16, screenY + hover);
-      ctx.lineTo(screenX - 4, screenY + 36 + hover);
-      ctx.lineTo(screenX + 16, screenY + 28 + hover);
-      ctx.lineTo(screenX + 36, screenY + 36 + hover);
-      ctx.fill();
-      
-      // Ghost Body Part
-      ctx.fillStyle = '#581c87';
-      ctx.beginPath();
-      ctx.roundRect(screenX + 4, screenY + 4 + hover, 24, 20, 10);
-      ctx.fill();
-
-      // Eye
-      ctx.fillStyle = '#fff';
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#fff';
-      ctx.fillRect(screenX + 12, screenY + 10 + hover, 8, 4);
-      ctx.shadowBlur = 0;
-    } else {
-      // ELITE: Heavy Armored Knight / Golem
+      // Hollow Soldier / Zombie Knight
       const bounce = Math.sin(this.animFrame * 1.5) * 4;
+      ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(0,0,0,0.8)';
       
-      // Armor Silhouette
-      ctx.fillStyle = '#020617';
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#38bdf8';
-      ctx.beginPath();
-      ctx.roundRect(screenX, screenY + bounce, this.width, this.height, 8);
-      ctx.fill();
+      // Rusted Chestpiece
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath(); ctx.roundRect(screenX + 4, screenY + 10 + bounce, 24, 20, 4); ctx.fill();
       
-      // Glowing Plates
-      ctx.fillStyle = '#38bdf8';
-      ctx.globalAlpha = 0.6 + Math.sin(this.animFrame * 4) * 0.4;
-      ctx.fillRect(screenX + 4, screenY + 10 + bounce, this.width - 8, 4);
-      ctx.fillRect(screenX + 4, screenY + 25 + bounce, this.width - 8, 4);
+      // Skull
+      ctx.fillStyle = '#f1f5f9';
+      ctx.beginPath(); ctx.roundRect(screenX + 10, screenY + bounce, 12, 12, 2); ctx.fill();
+      
+      // Eyes
+      ctx.fillStyle = '#ef4444'; ctx.fillRect(screenX + 11, screenY + 4 + bounce, 3, 2); ctx.fillRect(screenX + 18, screenY + 4 + bounce, 3, 2);
+      
+    } else if (this.type === 'ADVANCED') {
+      // Abyssal Wraith
+      const hover = Math.sin(this.animFrame) * 12;
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(screenX + 16, screenY + 20 + hover, 20, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1.0;
       
-      // Helmet Eye Slit
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(screenX + (this.direction === 1 ? 28 : 6), screenY + 12 + bounce, 10, 4);
-      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#1e1b4b'; // Deep Indigo
+      ctx.beginPath(); ctx.moveTo(screenX + 16, screenY + hover); ctx.lineTo(screenX, screenY + 44 + hover); ctx.lineTo(screenX + 32, screenY + 44 + hover); ctx.fill();
       
-      // Dash Effect
-      if (this.isDashing) {
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(screenX - (this.direction * 10), screenY + bounce, this.width, this.height);
-      }
+      ctx.fillStyle = '#a855f7'; ctx.shadowBlur = 20; ctx.shadowColor = '#a855f7';
+      ctx.beginPath(); ctx.arc(screenX + 16, screenY + 20 + hover, 5, 0, Math.PI*2); ctx.fill();
+      
+    } else {
+      // ELITE: Void Sentinel
+      const bounce = Math.sin(this.animFrame * 2) * 5;
+      ctx.fillStyle = '#020617'; ctx.strokeStyle = '#38bdf8';
+      ctx.beginPath(); ctx.roundRect(screenX, screenY + bounce, this.width, this.height, 12); ctx.fill(); ctx.stroke();
+      
+      ctx.fillStyle = '#fff';
+      const eyeX = this.direction === 1 ? 30 : 4;
+      ctx.fillRect(screenX + eyeX, screenY + 12 + bounce, 10, 4);
     }
     ctx.restore();
-}
+  }
 }
 
 function gx_out_of_bounds(gx: number, gy: number, level: number[][]) {
@@ -1227,12 +1313,12 @@ const SKILLS_LIST = [
 ];
 
 const TOWER_NODES = [
-  { id: 0, label: 'GATEWAY', type: 'BATTLE', connections: [1, 2], room: 0 },
-  { id: 1, label: 'BONE PIT', type: 'BATTLE', connections: [3], room: 1 },
-  { id: 2, label: 'LOOT CHAMBER', type: 'LOOT', connections: [3], room: 1 },
-  { id: 3, label: 'VOID REACH', type: 'ELITE', connections: [4], room: 2 },
-  { id: 4, label: 'THRONE ASCENT', type: 'BATTLE', connections: [5], room: 3 },
-  { id: 5, label: 'THE FALLEN', type: 'BOSS', connections: [], room: 4 }
+  { id: 0, label: 'FORSAKEN GATE', type: 'BATTLE', connections: [1, 2], room: 0 },
+  { id: 1, label: 'CATACOMBS', type: 'BATTLE', connections: [3], room: 1 },
+  { id: 2, label: 'SANCTUM', type: 'LOOT', connections: [3], room: 1 },
+  { id: 3, label: 'ABYSSAL PEAK', type: 'ELITE', connections: [4], room: 2 },
+  { id: 4, label: 'HIGH WALL', type: 'BATTLE', connections: [5], room: 3 },
+  { id: 5, label: 'ELDER THRONE', type: 'BOSS', connections: [], room: 4 }
 ];
 
 // --- MAIN COMPONENT ---
@@ -1817,7 +1903,7 @@ export default function App() {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    const { player, enemies, particles, level, camera, stars, decorations, shakeIntensity, boss } = engineRef.current;
+    const { player, enemies, particles, level, camera, shakeIntensity, boss } = engineRef.current;
     const theme = THEMES[room % THEMES.length];
 
     // Shake Logic
@@ -1829,192 +1915,119 @@ export default function App() {
     const viewY = Math.floor(camera.y - shakeY);
     const currentCamera = new Vector(viewX, viewY);
 
-    // 1. Background Fill with Atmospheric Gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, 600);
-    bgGrad.addColorStop(0, '#020617');
-    bgGrad.addColorStop(1, '#0f172a');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 800, 600);
+    // 1. Background Fill with Dark Fantasy Parallax
+    ctx.fillStyle = theme.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 1.5 Scanline / Grid Overlay for Cyberpunk feel
-    ctx.strokeStyle = 'rgba(14, 165, 233, 0.05)';
-    ctx.beginPath();
-    for(let x = (-(viewX * 0.1) % 40); x < 800; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, 600); }
-    for(let y = (-(viewY * 0.1) % 40); y < 600; y += 40) { ctx.moveTo(0, y); ctx.lineTo(800, y); }
-    ctx.stroke();
-
-    // 2. Parallax Pillars & Background Details
-    decorations.forEach(d => {
-      const pX = (d.x - viewX * 0.3) % 1200;
-      const pY = d.y - viewY * 0.3;
-      
-      ctx.globalAlpha = 0.05;
-      ctx.fillStyle = theme.secondary;
-      if (d.type === 'PILLAR') {
-        ctx.fillRect(pX, -100, 50, 800);
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.strokeRect(pX, -100, 50, 800);
-      } else {
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-        ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(pX, -100); ctx.lineTo(pX, 800); ctx.stroke();
-      }
-      ctx.globalAlpha = 1.0;
-    });
-
-    // 3. Level Tiles (Stone Texture)
-    level.forEach((row, y) => {
-      row.forEach((cell, x) => {
-        if (cell === 1) {
-          const tX = Math.floor(x * TILE_SIZE - viewX);
-          const tY = Math.floor(y * TILE_SIZE - viewY);
-          if (tX < -TILE_SIZE || tX > 800 || tY < -TILE_SIZE || tY > 600) return;
-          
-          // Base Tile
-          ctx.fillStyle = '#1e293b'; 
-          ctx.fillRect(tX, tY, TILE_SIZE, TILE_SIZE);
-          
-          // Metallic Detail
-          ctx.fillStyle = 'rgba(14, 165, 233, 0.1)';
-          ctx.fillRect(tX + 2, tY + 2, TILE_SIZE - 4, 1);
-          ctx.fillRect(tX + 2, tY + TILE_SIZE - 3, TILE_SIZE - 4, 1);
-          
-          // Variation Detail
-          if ((x + y) % 7 === 0) {
-            ctx.fillStyle = 'rgba(255,255,255,0.05)';
-            ctx.fillRect(tX + 4, tY + 4, 2, 2);
-          }
-          
-          ctx.strokeStyle = '#020617';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(tX, tY, TILE_SIZE, TILE_SIZE);
-        } else if (cell === 4) {
-           // HIGH-VISIBILITY BLUE PORTAL VISUAL
-           const tX = x * TILE_SIZE - viewX;
-           const tY = y * TILE_SIZE - viewY;
-           const centerX = tX + 16;
-           const centerY = tY + 16;
-           
-           const primaryColor = '#06b6d4'; 
-           const secondaryColor = '#1d4ed8'; 
-
-           ctx.save();
-           
-           if (portalOpen) {
-             // 1. ACTIVE PORTAL - Radiant Energy
-             ctx.shadowBlur = 60 + Math.sin(time / 200) * 20;
-             ctx.shadowColor = primaryColor;
-             
-             for (let i = 0; i < 4; i++) {
-               const rot = (time / (500 + i * 150)) + (i * Math.PI / 2);
-               const scaleX = 1 + Math.sin(time / 300 + i) * 0.1;
-               const scaleY = 1 + Math.cos(time / 300 + i) * 0.1;
-               
-               ctx.save();
-               ctx.translate(centerX, centerY);
-               ctx.rotate(rot);
-               ctx.scale(scaleX, scaleY);
-               
-               const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 45);
-               grad.addColorStop(0, '#fff');
-               grad.addColorStop(0.3, primaryColor);
-               grad.addColorStop(0.7, secondaryColor);
-               grad.addColorStop(1, 'transparent');
-               
-               ctx.fillStyle = grad;
-               ctx.globalAlpha = 0.8 - (i * 0.15);
-               ctx.beginPath();
-               ctx.ellipse(0, 0, 32 - i * 3, 58 - i * 3, 0, 0, Math.PI * 2);
-               ctx.fill();
-               ctx.restore();
-             }
-
-             // Electric Cyan Energy Rings
-             for (let i = 0; i < 3; i++) {
-               ctx.strokeStyle = i === 0 ? '#fff' : '#67e8f9';
-               ctx.lineWidth = i === 0 ? 1 : 3;
-               ctx.globalAlpha = (0.5 - i * 0.1) * (0.6 + Math.sin(time / 150 + i) * 0.4);
-               ctx.beginPath();
-               ctx.ellipse(centerX, centerY, 35 + i * 6, 65 + i * 6, Math.sin(time/600 + i) * 0.4, 0, Math.PI * 2);
-               ctx.stroke();
-             }
-
-             // Ethereal Motes
-             ctx.globalAlpha = 1.0;
-             for (let i = 0; i < 10; i++) {
-               const seed = (x * 7 + y * 13 + i);
-               const speed = 0.0008 + (i * 0.0003);
-               const mX = centerX + Math.cos(time * speed + seed) * (38 + Math.sin(time/400 + seed) * 15);
-               const mY = centerY + Math.sin(time * speed + seed) * (68 + Math.cos(time/300 + seed) * 15);
-               ctx.fillStyle = i % 2 === 0 ? '#fff' : '#67e8f9';
-               ctx.beginPath(); ctx.arc(mX, mY, 1.5, 0, Math.PI * 2); ctx.fill();
-             }
-           } else {
-             // 2. DORMANT PORTAL - Substantial Blue Silhouette
-             ctx.shadowBlur = 40;
-             ctx.shadowColor = 'rgba(6, 182, 212, 0.7)';
-             ctx.fillStyle = '#083344';
-             ctx.beginPath();
-             ctx.ellipse(centerX, centerY, 28, 48, 0, 0, Math.PI * 2);
-             ctx.fill();
-             
-             ctx.strokeStyle = '#67e8f9';
-             ctx.lineWidth = 3;
-             ctx.beginPath();
-             ctx.ellipse(centerX, centerY, 28, 48, Math.sin(time/1500) * 0.05, 0, Math.PI * 2);
-             ctx.stroke();
-           }
-           ctx.restore();
-        }
-      });
-    });
-
-    // 4. Entities
-    if (boss) {
-      ctx.save();
-      ctx.shadowBlur = 25;
-      ctx.shadowColor = '#f43f5e';
-      boss.draw(ctx, currentCamera);
-      ctx.restore();
-    }
-    
-    enemies.forEach(enemy => {
-      ctx.save();
-      if (!enemy.isDead) {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = enemy.type === 'ADVANCED' ? '#f43f5e' : '#0ea5e9';
-        ctx.strokeStyle = enemy.type === 'ADVANCED' ? 'rgba(244, 63, 94, 0.4)' : 'rgba(14, 165, 233, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(enemy.pos.x - viewX - 1, enemy.pos.y - viewY - 1, enemy.width + 2, enemy.height + 2);
-      }
-      enemy.draw(ctx, currentCamera);
-      ctx.restore();
-    });
-
-    engineRef.current.projectiles.forEach(p => p.draw(ctx, currentCamera));
-    
-    // 6. Player
+    // Distant Parallax Mountains
     ctx.save();
-    if (player.invulnerability > 0) ctx.globalAlpha = Math.sin(time / 50) > 0 ? 0.5 : 1;
-    
-    // Neon Outline for Player
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(player.pos.x - viewX - 1, player.pos.y - viewY - 1, player.width + 2, player.height + 2);
-    
-    player.draw(ctx, currentCamera);
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#0f172a';
+    for (let i = 0; i < 4; i++) {
+        const px = (i * 450 - viewX * 0.1) % (canvas.width + 450);
+        ctx.beginPath();
+        ctx.moveTo(px - 300, canvas.height);
+        ctx.lineTo(px, canvas.height - 400);
+        ctx.lineTo(px + 300, canvas.height);
+        ctx.fill();
+    }
+    // Midground Parallax
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#1e293b';
+    for (let i = 0; i < 5; i++) {
+        const px = (i * 350 - viewX * 0.2) % (canvas.width + 350);
+        ctx.beginPath();
+        ctx.moveTo(px - 150, canvas.height);
+        ctx.lineTo(px, canvas.height - 200);
+        ctx.lineTo(px + 150, canvas.height);
+        ctx.fill();
+    }
     ctx.restore();
+
+    // Redraw Runes
+    ctx.save();
+    ctx.font = '280px serif';
+    ctx.fillStyle = theme.runes;
+    ctx.fillText("VOID", (400 - viewX * 0.05) % 3000, 450);
+    ctx.restore();
+
+    // 2. World Rendering
+    ctx.save();
     
+    // Level Tiles - Rusted / Ancient Stone
+    for (let y = 0; y < level.length; y++) {
+      for (let x = 0; x < level[y].length; x++) {
+        const tile = level[y][x];
+        if (tile === 0) continue;
+        const tx = x * TILE_SIZE - viewX;
+        const ty = y * TILE_SIZE - viewY;
+        if (tx < -TILE_SIZE || tx > 800 || ty < -TILE_SIZE || ty > 600) continue;
+
+        if (tile === 1) {
+          // Stone Texture
+          ctx.fillStyle = '#1a202c';
+          ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+          ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+          ctx.strokeRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+          // Moss
+          if ((x + y) % 5 === 0) {
+            ctx.fillStyle = '#064e3b';
+            ctx.fillRect(tx, ty, TILE_SIZE, 3);
+          }
+        } else if (tile === 2) {
+          // Spikes
+          ctx.fillStyle = '#450a0a';
+          ctx.beginPath();
+          ctx.moveTo(tx, ty + TILE_SIZE); ctx.lineTo(tx + TILE_SIZE / 2, ty); ctx.lineTo(tx + TILE_SIZE, ty + TILE_SIZE); ctx.fill();
+        } else if (tile === 4) {
+          // Fog Gate (Exit)
+          const pulse = Math.sin(time / 200) * 0.2 + 0.3;
+          ctx.save();
+          ctx.shadowBlur = 30; ctx.shadowColor = '#fff';
+          ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+          ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+          // Gate Structure
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+          ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
+          ctx.restore();
+        }
+      }
+    }
+
+    // 3. Entities
+    if (boss) boss.draw(ctx, currentCamera);
+    enemies.forEach(enemy => enemy.draw(ctx, currentCamera));
+    engineRef.current.projectiles.forEach(p => p.draw(ctx, currentCamera));
+    player.draw(ctx, currentCamera);
     particles.forEach(p => p.draw(ctx, currentCamera));
 
-    // 5. HUD & Overlays
-    const vignette = ctx.createRadialGradient(400, 300, 200, 400, 300, 600);
-    vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.7)');
-    ctx.fillStyle = vignette;
+    // 4. ATMOSPHERIC OVERLAYS
+    ctx.save();
+    // Volumetric Glow from Player (Torch)
+    ctx.globalCompositeOperation = 'screen';
+    const plX = player.pos.x + player.width/2 - viewX;
+    const plY = player.pos.y + player.height/2 - viewY;
+    const grad = ctx.createRadialGradient(plX, plY, 0, plX, plY, 200);
+    grad.addColorStop(0, 'rgba(251, 191, 36, 0.15)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Ambient Color Match
+    ctx.globalCompositeOperation = 'hard-light';
+    ctx.fillStyle = theme.ambient;
     ctx.fillRect(0, 0, 800, 600);
+
+    // Vignette
+    ctx.globalCompositeOperation = 'multiply';
+    const vig = ctx.createRadialGradient(400, 300, 300, 400, 300, 600);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, 800, 600);
+    ctx.restore();
+
+    ctx.restore();
   };
 
   return (
@@ -2042,8 +2055,8 @@ export default function App() {
                     <div className="flex items-center justify-between text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-rose-500/80">
                       <div className="flex items-center gap-1">
                         <Heart className="w-2 h-2 sm:w-2 sm:h-2 fill-rose-500" />
-                        <span className="hidden xs:inline">Vitality</span>
-                        <span className="xs:hidden">HP</span>
+                        <span className="hidden xs:inline">Life Essence</span>
+                        <span className="xs:hidden">LE</span>
                       </div>
                       <span className="text-white/60">{Math.ceil(health)}%</span>
                     </div>
@@ -2062,7 +2075,7 @@ export default function App() {
                   <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-1">
                       <Zap className="w-2 h-2 text-sky-400 fill-sky-400/20" />
-                      <span className="text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-sky-400/80">Cognition</span>
+                      <span className="text-[7px] sm:text-[7px] font-black tracking-widest uppercase text-sky-400/80">Forgotten Souls</span>
                     </div>
                     <span className="text-sm sm:text-xl font-mono text-white leading-none tracking-widest font-bold tabular-nums">
                       {score.toString().padStart(6, '0')}
@@ -2073,7 +2086,7 @@ export default function App() {
                 {/* Arsenal (Compact) */}
                 <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-1.5 sm:p-1.5 sm:px-3 rounded-full flex items-center gap-2 sm:gap-3 shadow-lg self-start">
                    <Sword className="w-3 h-3 text-white/40" />
-                   <span className="text-[8px] sm:text-[8px] font-black text-white/80 uppercase tracking-tighter italic">{weapon}</span>
+                   <span className="text-[8px] sm:text-[8px] font-black text-white/80 uppercase tracking-tighter italic">{weapon === 'SWORD' ? 'RUSTED CLAYMORE' : 'IRON ARBALEST'}</span>
                    <span className="hidden sm:inline text-[7px] text-white/20 font-bold uppercase tracking-widest bg-white/5 px-1.5 rounded">[Q/E]</span>
                 </div>
               </div>
@@ -2231,9 +2244,9 @@ export default function App() {
               className="absolute top-6 left-1/2 -translate-x-1/2 w-[500px] flex flex-col items-center gap-2 z-50"
             >
               <div className="flex justify-between w-full px-1">
-                <span className="text-[14px] font-black tracking-[0.4em] text-white uppercase italic drop-shadow-lg">THE FALLEN</span>
+                <span className="text-[14px] font-black tracking-[0.4em] text-white uppercase italic drop-shadow-lg">THE ELDERBORN LORD</span>
                 <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest bg-slate-900/80 px-2 rounded">
-                  {bossHP < bossMaxHP * 0.5 ? 'PHASE 2: ENRAGED' : 'PHASE 1'}
+                  {bossHP < bossMaxHP * 0.5 ? 'PHASE 2: ELDER RAGE' : 'PHASE 1'}
                 </span>
               </div>
               <div className="w-full h-3 bg-slate-950 border border-white/10 rounded-sm p-[2px] shadow-2xl overflow-hidden backdrop-blur-sm">
@@ -2260,7 +2273,7 @@ export default function App() {
                 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className="text-center"
               >
-                <p className="text-rose-500 text-[10px] uppercase font-black tracking-[1em] mb-4">Ascending Tower</p>
+                <p className="text-rose-500 text-[10px] uppercase font-black tracking-[1em] mb-4">Descending Into Abyss</p>
                 <div className="w-48 h-[1px] bg-white/20 mx-auto" />
               </motion.div>
             </motion.div>
@@ -2280,8 +2293,8 @@ export default function App() {
                 className="flex flex-col items-center gap-6 sm:gap-8 w-full max-w-[280px]"
               >
                 <div className="text-center space-y-1 sm:space-y-2">
-                  <h2 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter">Suspended</h2>
-                  <p className="text-rose-500 text-[8px] sm:text-[10px] uppercase font-black tracking-[0.6em] sm:tracking-[1em]">Game Paused</p>
+                  <h2 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter">At Resting Grace</h2>
+                  <p className="text-rose-500 text-[8px] sm:text-[10px] uppercase font-black tracking-[0.6em] sm:tracking-[1em]">Game Suspended</p>
                 </div>
                 
                 <div className="flex flex-col gap-3 sm:gap-4 w-full">
