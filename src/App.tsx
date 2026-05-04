@@ -732,9 +732,106 @@ export default function App() {
                 <button onClick={() => setGameState('START')} className="absolute top-6 left-6 flex items-center gap-2 text-white/40 hover:text-white transition-colors group z-[110]"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /><span className="text-[10px] font-black uppercase tracking-widest">Main Menu</span></button>
               )}
               {gameState === 'START' && (
-                <div className="space-y-6 w-full max-w-2xl">
-                  <div className="space-y-2"><motion.h1 initial={{ y: 20 }} animate={{ y: 0 }} className="text-4xl sm:text-7xl font-black text-white tracking-tighter italic uppercase leading-none">Aetheria: The Fallen Ascent</motion.h1><motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="text-rose-500 text-[10px] sm:text-sm tracking-[0.4em] uppercase font-light">Enter the Abyss</motion.p></div>
-                  <div className="flex flex-col items-center gap-4"><button onClick={() => { soundManager.resume(); resetGame(); }} className="group relative w-full sm:w-auto px-12 py-4 bg-rose-600 hover:scale-105 transition-all duration-300 rounded-full flex items-center justify-center overflow-hidden shadow-[0_0_40px_rgba(225,29,72,0.2)]"><Play className="w-4 h-4 text-white mr-3 fill-white" /><span className="text-white font-black uppercase tracking-[0.2em] text-xs">Initiate Cycle</span></button>{hasSave && (<button onClick={() => { soundManager.resume(); loadGame(); }} className="px-10 py-3 bg-slate-800 hover:scale-105 transition-all rounded-full flex items-center justify-center border border-white/10"><span className="text-white font-black uppercase tracking-[0.2em] text-xs">Continue Journey</span></button>)}</div>
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                  {/* Decorative Elements */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-rose-600/10 rounded-full blur-[120px] animate-pulse" />
+                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+                    
+                    {/* Floating Shards */}
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <motion.div
+                        key={`shard-${i}`}
+                        initial={{ 
+                          x: Math.random() * 800, 
+                          y: Math.random() * 600, 
+                          rotation: Math.random() * 360,
+                          opacity: 0 
+                        }}
+                        animate={{ 
+                          x: [null, (Math.random() - 0.5) * 200 + Math.random() * 800],
+                          y: [null, (Math.random() - 0.5) * 200 + Math.random() * 600],
+                          rotate: [0, 360],
+                          opacity: [0, 0.2, 0]
+                        }}
+                        transition={{ 
+                          duration: 10 + Math.random() * 20, 
+                          repeat: Infinity, 
+                          ease: "linear" 
+                        }}
+                        className="absolute w-2 h-2 bg-white skew-x-12"
+                      />
+                    ))}
+                  </div>
+
+                  <div className="relative space-y-8 z-10 max-w-4xl">
+                    <motion.div
+                      initial={{ scale: 1.1, opacity: 0, y: 30 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="space-y-4"
+                    >
+                      <div className="inline-block relative">
+                         <motion.div 
+                           initial={{ width: 0 }} 
+                           animate={{ width: '100%' }} 
+                           transition={{ delay: 0.8, duration: 1.5 }}
+                           className="absolute -bottom-2 left-0 h-[2px] bg-gradient-to-r from-transparent via-rose-500 to-transparent" 
+                         />
+                         <h1 className="text-5xl sm:text-9xl font-black text-white tracking-tighter italic uppercase leading-[0.8] font-display skew-x-[-10deg] drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                          Aetheria: <br/>
+                          <span className="text-white/90">The Fallen</span> <br/>
+                          <span className="text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.4)]">Ascent</span>
+                        </h1>
+                      </div>
+                      
+                      <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        transition={{ delay: 1.2 }}
+                        className="flex items-center justify-center gap-6"
+                      >
+                        <div className="h-[1px] w-12 bg-white/10" />
+                        <p className="text-white/40 text-[8px] sm:text-[10px] tracking-[0.8em] uppercase font-bold">
+                          A Cursed RPG Adventure
+                        </p>
+                        <div className="h-[1px] w-12 bg-white/10" />
+                      </motion.div>
+                    </motion.div>
+
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1.5 }}
+                      className="flex flex-col items-center gap-4 pt-8"
+                    >
+                      <button 
+                        onClick={() => { soundManager.resume(); resetGame(); }} 
+                        className="group relative w-full sm:w-80 px-12 py-5 bg-rose-600 hover:bg-rose-500 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-lg flex items-center justify-center overflow-hidden shadow-[0_0_50px_rgba(225,29,72,0.3)] border border-rose-400/20"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                        <Play className="w-4 h-4 text-white mr-3 fill-white" />
+                        <span className="text-white font-black uppercase tracking-[0.2em] text-[11px] sm:text-xs">Initiate New Cycle</span>
+                        <div className="absolute right-0 top-0 bottom-0 w-8 bg-white/10 skew-x-[-20deg] translate-x-12 group-hover:translate-x-[-200px] transition-transform duration-700" />
+                      </button>
+
+                      {hasSave && (
+                        <button 
+                          onClick={() => { soundManager.resume(); loadGame(); }} 
+                          className="group w-full sm:w-80 px-10 py-4 bg-slate-900/40 hover:bg-slate-800 backdrop-blur-md transition-all rounded-lg flex items-center justify-center border border-white/10 hover:border-white/20 active:scale-95"
+                        >
+                          <span className="text-white/60 group-hover:text-white font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs transition-colors">Resume Journey</span>
+                        </button>
+                      )}
+                    </motion.div>
+                  </div>
+                  
+                  {/* Subtle Scanlines */}
+                  <div className="absolute inset-0 pointer-events-none opacity-[0.03] select-none">
+                    {Array.from({ length: 40 }).map((_, i) => (
+                      <div key={i} className="h-[1px] w-full bg-white mb-2" />
+                    ))}
+                  </div>
                 </div>
               )}
               {gameState === 'MAP' && (
@@ -771,18 +868,57 @@ export default function App() {
                 </div>
               )}
               {gameState === 'ENDING' && (
-                <div className="space-y-6 w-full max-w-xl px-4">
-                   <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="space-y-2"><p className="text-sky-400 text-[10px] uppercase font-black tracking-[1em]">The Curse is Broken</p><h1 className="text-5xl sm:text-8xl font-black text-white italic uppercase tracking-tighter leading-none">Victory</h1></motion.div>
-                   <div className="bg-white/5 p-6 rounded-2xl border border-white/10 text-left space-y-4"><div className="flex justify-between border-b border-white/10 pb-2"><span className="text-slate-400 uppercase text-[10px] font-black tracking-widest">Final Cognition</span><span className="text-white font-mono font-bold text-lg">{score}</span></div><p className="text-slate-300 text-xs">You escaped Aetheria as it crumbled into the void. The world is safe... for now.</p></div>
-                   <button onClick={() => setGameState('START')} className="px-10 py-4 bg-white text-black font-black uppercase tracking-widest rounded-full hover:scale-105 transition-all text-xs">Restart Cycle</button>
+                <div className="space-y-8 w-full max-w-xl px-4 text-center">
+                   <motion.div 
+                     initial={{ scale: 0.8, opacity: 0 }} 
+                     animate={{ scale: 1, opacity: 1 }} 
+                     className="space-y-4"
+                   >
+                     <p className="text-sky-400 text-[10px] uppercase font-black tracking-[1em] mb-4">The Curse is Broken</p>
+                     <h1 className="text-6xl sm:text-9xl font-black text-white italic uppercase tracking-tighter leading-none font-display skew-x-[-10deg]">Victory</h1>
+                   </motion.div>
+                   
+                   <motion.div 
+                     initial={{ opacity: 0, y: 20 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: 0.5 }}
+                     className="bg-white/5 backdrop-blur-xl p-8 rounded-2xl border border-white/10 text-left space-y-6 shadow-2xl"
+                   >
+                     <div className="flex justify-between items-end border-b border-white/10 pb-4">
+                       <span className="text-slate-500 uppercase text-[10px] font-black tracking-widest">Final Cognition</span>
+                       <span className="text-white font-display font-black text-4xl">{score}</span>
+                     </div>
+                     <p className="text-slate-300 text-sm leading-relaxed font-light">
+                       You escaped <span className="text-white font-bold italic">Aetheria</span> as it crumbled into the void. The world is safe... for now. Your name is etched into the annals of the ascended.
+                     </p>
+                   </motion.div>
+
+                   <button onClick={() => setGameState('START')} className="px-12 py-5 bg-white text-black font-black uppercase tracking-widest rounded-lg hover:scale-105 transition-all text-[11px] shadow-[0_0_30px_rgba(255,255,255,0.2)]">Restart Cycle</button>
                 </div>
               )}
               {gameState === 'GAMEOVER' && (
-                <div className="space-y-4 w-full max-w-xl px-4">
-                  <h1 className="text-5xl sm:text-8xl font-black text-rose-500 tracking-tighter uppercase italic leading-none">Cursed</h1>
-                  <p className="text-slate-500 uppercase tracking-[0.4em] text-[10px] font-bold">Your Soul Has Faded</p>
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 backdrop-blur-xl space-y-1"><p className="text-slate-400 text-[8px] uppercase font-bold">Soul Fragments Collected</p><p className="text-white text-2xl font-mono">{score.toString().padStart(6, '0')}</p></div>
-                  <button onClick={() => { setRoom(0); setCycle(0); setClearedNodes([]); setCurrentMapNode(0); setHealth(100); engineRef.current.player.score = 0; setGameState('START'); }} className="flex items-center justify-center mx-auto px-10 py-4 bg-rose-600 hover:bg-rose-500 transition-all rounded-xl text-white font-black uppercase tracking-widest text-[10px] shadow-xl"><RotateCcw className="w-4 h-4 mr-3" />Resurrect</button>
+                <div className="space-y-8 w-full max-w-xl px-4 text-center">
+                  <motion.div
+                    initial={{ scale: 1.2, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="space-y-2"
+                  >
+                    <h1 className="text-6xl sm:text-9xl font-black text-rose-500 tracking-tighter uppercase italic leading-none font-display skew-x-[-10deg] drop-shadow-[0_0_30px_rgba(244,63,94,0.4)]">Cursed</h1>
+                    <p className="text-rose-500/60 uppercase tracking-[0.8em] text-[10px] font-black">Your Soul Has Faded</p>
+                  </motion.div>
+
+                  <div className="bg-rose-950/20 backdrop-blur-xl p-6 rounded-2xl border border-rose-500/10 space-y-2">
+                    <p className="text-rose-400 text-[9px] uppercase font-black tracking-widest">Soul Fragments Collected</p>
+                    <p className="text-white text-4xl font-display font-black tracking-widest">{score.toString().padStart(6, '0')}</p>
+                  </div>
+
+                  <button 
+                    onClick={() => { setRoom(0); setCycle(0); setClearedNodes([]); setCurrentMapNode(0); setHealth(100); engineRef.current.player.score = 0; setGameState('START'); }} 
+                    className="flex items-center justify-center mx-auto px-12 py-5 bg-rose-600 hover:bg-rose-500 hover:scale-105 transition-all rounded-lg text-white font-black uppercase tracking-widest text-[11px] shadow-2xl border border-rose-400/20"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-3" />
+                    Resurrect
+                  </button>
                 </div>
               )}
             </motion.div>
