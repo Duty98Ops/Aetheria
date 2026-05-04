@@ -1574,6 +1574,7 @@ export default function App() {
     lastTime: 0,
     difficultyScale: 1,
     stars: [] as {x: number, y: number, s: number, layer: number}[],
+    dustParticles: [] as {x: number, y: number, size: number, speed: number, drift: number, opacity: number}[],
     decorations: [] as {x: number, y: number, type: 'CHAIN' | 'PILLAR' | 'CRACK', seed: number}[],
     shakeIntensity: 0,
     portalOpen: false,
@@ -1610,6 +1611,15 @@ export default function App() {
       y: Math.random() * 2000,
       s: Math.random() * 15 + 2,
       layer: Math.floor(Math.random() * 4) + 1
+    }));
+
+    engineRef.current.dustParticles = Array.from({ length: 60 }, () => ({
+      x: Math.random() * 800,
+      y: Math.random() * 600,
+      size: 0.5 + Math.random() * 1.5,
+      speed: 0.1 + Math.random() * 0.2,
+      drift: (Math.random() - 0.5) * 0.1,
+      opacity: 0.1 + Math.random() * 0.3
     }));
 
     engineRef.current.decorations = Array.from({ length: 30 }, () => ({
@@ -1932,6 +1942,15 @@ export default function App() {
     if (Math.random() > 0.95) setFlicker(0.8 + Math.random() * 0.4);
     else setFlicker(f => f + (1 - f) * 0.1);
 
+    // Update Dust Particles
+    engine.dustParticles.forEach(p => {
+      p.y += p.speed;
+      p.x += p.drift;
+      if (p.y > 600) p.y = 0;
+      if (p.x > 800) p.x = 0;
+      if (p.x < 0) p.x = 800;
+    });
+
     // 7. Portal Interaction
     let touchingPortal = false;
     if (engine.portalOpen) {
@@ -2088,6 +2107,21 @@ export default function App() {
         ctx.lineTo(px + 150, canvas.height);
         ctx.fill();
     }
+    ctx.restore();
+
+    // Draw Dust Particles (Parallax)
+    ctx.save();
+    engineRef.current.dustParticles.forEach(p => {
+      const px = (p.x - viewX * 0.2) % 800;
+      const py = (p.y - viewY * 0.2) % 600;
+      const dx = px < 0 ? px + 800 : px;
+      const dy = py < 0 ? py + 600 : py;
+      
+      ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+      ctx.beginPath();
+      ctx.arc(dx, dy, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.restore();
 
     // Redraw Runes
