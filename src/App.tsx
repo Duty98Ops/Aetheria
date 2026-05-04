@@ -1430,6 +1430,7 @@ export default function App() {
   const [enemiesDefeated, setEnemiesDefeated] = useState(0);
   const [totalEnemies, setTotalEnemies] = useState(0);
   const [score, setScore] = useState(0);
+  const [showSaved, setShowSaved] = useState(false);
   const [room, setRoom] = useState(0);
   const [cycle, setCycle] = useState(0);
   const [portalOpen, setPortalOpen] = useState(false);
@@ -1496,6 +1497,7 @@ export default function App() {
       score: engineRef.current.player.score,
       room,
       cycle,
+      weapon,
       unlockedSkills,
       clearedNodes,
       currentMapNode,
@@ -1503,6 +1505,8 @@ export default function App() {
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     setHasSave(true);
+    setShowSaved(true);
+    setTimeout(() => setShowSaved(false), 2000);
   };
 
   const loadGame = () => {
@@ -1514,13 +1518,17 @@ export default function App() {
       setScore(data.score);
       setRoom(data.room);
       setCycle(data.cycle);
+      setWeapon(data.weapon || 'SWORD');
       setUnlockedSkills(data.unlockedSkills);
       setClearedNodes(data.clearedNodes);
       setCurrentMapNode(data.currentMapNode);
       
-      engineRef.current.player.hp = data.health;
-      engineRef.current.player.score = data.score;
-      engineRef.current.player.skills = new Set(data.unlockedSkills);
+      if (engineRef.current.player) {
+        engineRef.current.player.hp = data.health;
+        engineRef.current.player.score = data.score;
+        engineRef.current.player.skills = new Set(data.unlockedSkills);
+        engineRef.current.player.weapon = data.weapon || 'SWORD';
+      }
       
       setGameState('MAP');
     }
@@ -1584,11 +1592,6 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    // Initial check for save
-    if (localStorage.getItem(SAVE_KEY)) {
-      setHasSave(true);
-    }
-
     // Initial Parallax Elements
     engineRef.current.stars = Array.from({ length: 60 }, () => ({
       x: Math.random() * 3000,
@@ -1636,6 +1639,13 @@ export default function App() {
       cancelAnimationFrame(animationId);
     };
   }, [gameState, room, cycle]);
+
+  useEffect(() => {
+    // Check for save once on mount
+    if (localStorage.getItem(SAVE_KEY)) {
+      setHasSave(true);
+    }
+  }, []);
 
   const initGame = (selectedRoom: number, type: string = 'BATTLE', nextCycle?: number) => {
     const engine = engineRef.current;
@@ -2427,6 +2437,12 @@ export default function App() {
                     Restart Room
                   </button>
                   <button 
+                    onClick={() => saveGame()}
+                    className="w-full py-4 sm:py-5 bg-sky-900/40 text-sky-400 font-black uppercase tracking-widest rounded-xl border border-sky-500/30 hover:bg-sky-900/60 transition-all text-xs sm:text-sm"
+                  >
+                    Record Progress
+                  </button>
+                  <button 
                     onClick={() => setGameState('START')}
                     className="w-full py-4 sm:py-5 bg-rose-900/40 text-rose-500 font-black uppercase tracking-widest rounded-xl border border-rose-500/30 hover:bg-rose-900/60 text-xs sm:text-sm"
                   >
@@ -2440,6 +2456,17 @@ export default function App() {
 
         {/* Start / Upgrade / Game Over Screens */}
         <AnimatePresence>
+          {showSaved && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="absolute top-10 right-10 z-[200] bg-sky-500/20 backdrop-blur-xl border border-sky-400/30 px-4 py-2 rounded-lg pointer-events-none flex items-center gap-3"
+            >
+              <div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">Progress Saved</span>
+            </motion.div>
+          )}
           {(gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'GAMEOVER' || gameState === 'ENDING') && (
             <motion.div 
               initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
