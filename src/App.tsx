@@ -252,6 +252,7 @@ class Entity {
   public onGround: boolean = false;
   public hp: number = 100;
   public isDead: boolean = false;
+  public stunTimer = 0;
 
   get rect(): Rect {
     return { x: this.pos.x, y: this.pos.y, width: this.width, height: this.height };
@@ -331,6 +332,8 @@ class Player extends Entity {
   public magicCooldown = 0;
   public lungeTimer = 0;
   public hitFlash = 0;
+  public parryTimer = 0;
+  public isBlocking = false;
   public skills = new Set<string>();
   public cape: Cape;
   
@@ -355,6 +358,14 @@ class Player extends Entity {
     if (this.magicCooldown > 0) this.magicCooldown -= 16;
     if (this.lungeTimer > 0) this.lungeTimer -= 16;
     if (this.hitFlash > 0) this.hitFlash -= 16;
+    if (this.parryTimer > 0) this.parryTimer -= 16;
+
+    // Block Logic
+    this.isBlocking = input['x'] || input['k'] || input['ctrl'];
+    if (input['x_pressed']) {
+      this.parryTimer = 200; // 200ms perfect parry window
+      delete input['x_pressed'];
+    }
 
     // Crouch Logic
     const wantsToCrouch = (input['arrowdown'] || input['s']) && this.dashTimer <= 0;
@@ -615,8 +626,44 @@ class Player extends Entity {
     }
   }
 
-  takeDamage(amount: number) {
+  takeDamage(amount: number, engine?: any, attacker?: Entity) {
     if (this.invulnerabilityTime > 0) return;
+
+    // Check for Parry/Block
+    if (this.isBlocking) {
+      if (this.parryTimer > 0 && attacker) {
+        // PERFECT PARRY
+        attacker.stunTimer = 1500; // 1.5s stun
+        this.parryTimer = 0;
+        this.invulnerabilityTime = 500; // Brief grace period
+        if (engine) {
+          engine.shakeIntensity = 15;
+          // Parry Particles
+          for (let i = 0; i < 20; i++) {
+            engine.particles.push(new Particle(
+              new Vector(this.pos.x + this.width / 2, this.pos.y + this.height / 2),
+              new Vector((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15),
+              '#fff',
+              3 + Math.random() * 4,
+              0.02
+            ));
+          }
+        }
+        soundManager.playSFX(ASSETS.SFX_DASH); // Distinct sound for parry
+        
+        // Visual flash handled in draw or via particles
+        return; 
+      } else {
+        // CHIP DAMAGE BLOCK
+        this.hp -= amount * 0.2; // 80% damage reduction
+        this.invulnerabilityTime = 300; // Small grace period
+        this.hitFlash = 50; // Quicker hit flash for block
+        if (engine) engine.shakeIntensity = 3;
+        soundManager.playSFX(ASSETS.SFX_HIT);
+        return;
+      }
+    }
+
     this.hp -= amount;
     this.invulnerabilityTime = INVULNERABILITY_TIME;
     this.hitFlash = 150;
@@ -648,6 +695,24 @@ class Player extends Entity {
 
     // Cape Draw
     this.cape.draw(ctx, camera, '#450606');
+
+    // Block Aura
+    if (this.isBlocking) {
+      ctx.save();
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#0ea5e9';
+      ctx.strokeStyle = '#0ea5e9';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(screenX + this.width / 2, screenY + this.height / 2, 30, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Pulse effect
+      ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 100) * 0.2;
+      ctx.fillStyle = '#0ea5e9';
+      ctx.fill();
+      ctx.restore();
+    }
 
     // Fallen Knight Silhouette
     const bounce = Math.sin(this.animFrame) * 2;
@@ -776,6 +841,11 @@ class FallenAscendant extends Entity {
     this.animFrame += 0.05;
     if (this.hitFlash > 0) this.hitFlash -= 16;
     if (this.stateTimer > 0) this.stateTimer -= 16;
+    if (this.stunTimer > 0) {
+      this.stunTimer -= 16;
+      this.vel.x *= 0.5;
+      return; // Skip action while stunned
+    }
 
     // Phase Switch
     if (this.phase === 1 && this.hp < this.maxHp * 0.5) {
@@ -811,7 +881,7 @@ class FallenAscendant extends Entity {
 
     // Collision with Player
     if (this.checkCollision(this.rect, player.rect)) {
-      player.takeDamage(15);
+      player.takeDamage(15, engine, this);
     }
     
     // Check if hit by player melee attack
@@ -918,7 +988,7 @@ class FallenAscendant extends Entity {
            // Damage Player
            const laserRect = { x: laserX, y: laserY, width: laserWidth, height: laserHeight };
            if (this.checkCollision(laserRect, player.rect)) {
-             player.takeDamage(2); // Tick damage
+             player.takeDamage(2, engine, this); // Tick damage
            }
 
            // Spawn particles along laser
@@ -999,6 +1069,16 @@ class FallenAscendant extends Entity {
     if (this.isDead) return;
     const sX = Math.floor(this.pos.x - camera.x);
     const sY = Math.floor(this.pos.y - camera.y);
+
+    if (this.stunTimer > 0) {
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      if (Math.floor(Date.now() / 100) % 2 === 0) {
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(sX - 5, sY - 5, this.width + 10, this.height + 10);
+      }
+      ctx.restore();
+    }
 
     // Telegraph
     if (this.telegraphRect) {
@@ -1110,13 +1190,20 @@ class Enemy extends Entity {
     this.hp = this.baseHp * scale;
   }
 
-  update(player: Player, level: number[][], particles: Particle[], difficultyScale: number) {
+  update(player: Player, level: number[][], particles: Particle[], difficultyScale: number, engine: any) {
     this.animFrame += 0.1;
     if (this.hitFlash > 0) this.hitFlash -= 16;
     if (this.dashCooldown > 0) this.dashCooldown -= 16;
     
     if (this.isDead) {
       return;
+    }
+
+    if (this.stunTimer > 0) {
+      this.stunTimer -= 16;
+      this.vel.x *= 0.8;
+      // Stun visual: white outline or similar
+      return; 
     }
 
     const distToPlayer = Math.hypot(player.pos.x - this.pos.x, player.pos.y - this.pos.y);
@@ -1163,7 +1250,7 @@ class Enemy extends Entity {
 
     // Check collision with player
     if (this.checkCollision(this.rect, player.rect)) {
-      player.takeDamage(this.type === 'ELITE' ? 20 : 10);
+      player.takeDamage(this.type === 'ELITE' ? 20 : 10, engine, this);
       if (this.isDashing) {
         this.isDashing = false; // End dash on hit
       }
@@ -1256,6 +1343,17 @@ class Enemy extends Entity {
     if (this.isDead) return;
     const screenX = Math.floor(this.pos.x - camera.x);
     const screenY = Math.floor(this.pos.y - camera.y);
+
+    if (this.stunTimer > 0) {
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      if (Math.floor(Date.now() / 100) % 2 === 0) {
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(screenX - 5, screenY - 5, this.width + 10, this.height + 10);
+      }
+      ctx.restore();
+    }
+
     ctx.save();
     
     if (this.type === 'BASIC') {
@@ -1370,6 +1468,10 @@ export default function App() {
     if (key === 'jump') engineRef.current.input[' '] = true;
     if (key === 'attack') engineRef.current.input['z'] = true;
     if (key === 'dash') engineRef.current.input['shift'] = true;
+    if (key === 'block') {
+      engineRef.current.input['x'] = true;
+      engineRef.current.input['x_pressed'] = true;
+    }
   };
 
   const handleTouchEnd = (btn: string) => {
@@ -1381,6 +1483,7 @@ export default function App() {
     if (key === 'jump') engineRef.current.input[' '] = false;
     if (key === 'attack') engineRef.current.input['z'] = false;
     if (key === 'dash') engineRef.current.input['shift'] = false;
+    if (key === 'block') engineRef.current.input['x'] = false;
   };
 
   const theme = THEMES[room % THEMES.length];
@@ -1464,7 +1567,13 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      engineRef.current.input[e.key.toLowerCase()] = true;
+      const key = e.key.toLowerCase();
+      if (!engineRef.current.input[key]) {
+        if (key === 'x' || key === 'k') {
+          engineRef.current.input[key + '_pressed'] = true;
+        }
+      }
+      engineRef.current.input[key] = true;
       engineRef.current.input[e.key] = true; // Support both for safety
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -1738,7 +1847,7 @@ export default function App() {
 
     // 3. Enemy Logic Update
     enemies.forEach(enemy => {
-      enemy.update(player, level, particles, difficultyScale);
+      enemy.update(player, level, particles, difficultyScale, engine);
       
       // Auto-kill zone safeguard for stuck enemies
       if (enemy.pos.y > level.length * TILE_SIZE + 200) {
@@ -2200,6 +2309,13 @@ export default function App() {
                   <div className="w-6 h-6 border-2 border-sky-400/60 rounded-sm rotate-45" />
                 </button>
                 <div className="flex gap-2">
+                  <button 
+                    onPointerDown={() => handleTouchStart('block')}
+                    onPointerUp={() => handleTouchEnd('block')}
+                    className="w-14 h-14 bg-sky-500/10 backdrop-blur-xl rounded-2xl border border-sky-500/40 flex items-center justify-center active:scale-90 transition-all"
+                  >
+                    <Shield className="w-6 h-6 text-sky-400" />
+                  </button>
                   <button 
                     onPointerDown={() => handleTouchStart('dash')}
                     onPointerUp={() => handleTouchEnd('dash')}
