@@ -694,9 +694,14 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-full h-screen bg-[#020617] overflow-hidden flex items-center justify-center font-sans selection:bg-sky-500/30">
-      <div className="relative w-full h-full max-w-[800px] max-h-[600px] aspect-[4/3] flex items-center justify-center">
-        <canvas ref={canvasRef} width={800} height={600} className="w-full h-full object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5" />
+    <div className="relative w-full h-screen bg-[#020617] overflow-hidden flex flex-col items-center justify-center font-sans selection:bg-sky-500/30 p-2 sm:p-4">
+      <div className="relative w-full max-w-[1000px] aspect-[4/3] flex items-center justify-center p-0.5 sm:p-2 bg-slate-900/40 rounded-2xl border border-white/5 shadow-2xl backdrop-blur-sm overflow-hidden">
+        <canvas 
+          ref={canvasRef} 
+          width={800} 
+          height={600} 
+          className="w-full h-full object-contain rounded-xl shadow-inner pointer-events-none" 
+        />
 
         {(gameState === 'PLAYING' || gameState === 'ESCAPE') && (
           <HUD 
@@ -755,7 +760,7 @@ export default function App() {
             <motion.div key="save-status" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute top-10 right-10 z-[200] bg-sky-500/20 backdrop-blur-xl border border-sky-400/30 px-4 py-2 rounded-lg pointer-events-none flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" /><span className="text-[10px] font-black text-white uppercase tracking-widest">Progress Saved</span></motion.div>
           )}
           {(gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'GAMEOVER' || gameState === 'ENDING') && (
-            <motion.div key={`game-state-overlay-${gameState}`} initial={{ opacity: 0, backdropFilter: "blur(0px)" }} animate={{ opacity: 1, backdropFilter: "blur(8px)" }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] pointer-events-auto flex flex-col items-center justify-center bg-black/40 p-12">
+            <motion.div key={`game-state-overlay-${gameState}`} initial={{ opacity: 0, backdropFilter: "blur(0px)" }} animate={{ opacity: 1, backdropFilter: "blur(8px)" }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] pointer-events-auto flex flex-col items-center justify-center bg-black/60 p-4 sm:p-12 overflow-y-auto scrollbar-hide">
               {(gameState === 'MAP' || gameState === 'UPGRADE') && (
                 <button onClick={() => setGameState('START')} className="absolute top-6 left-6 flex items-center gap-2 text-white/40 hover:text-white transition-colors group z-[110]"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /><span className="text-[10px] font-black uppercase tracking-widest">Main Menu</span></button>
               )}
@@ -806,7 +811,7 @@ export default function App() {
                            transition={{ delay: 0.8, duration: 1.5 }}
                            className="absolute -bottom-2 left-0 h-[2px] bg-gradient-to-r from-transparent via-rose-500 to-transparent" 
                          />
-                         <h1 className="text-5xl sm:text-9xl font-black text-white tracking-tighter italic uppercase leading-[0.8] font-display skew-x-[-10deg] drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                         <h1 className="text-4xl xs:text-5xl sm:text-7xl md:text-9xl font-black text-white tracking-tighter italic uppercase leading-[0.8] font-display skew-x-[-10deg] drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
                           Aetheria: <br/>
                           <span className="text-white/90">The Fallen</span> <br/>
                           <span className="text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.4)]">Ascent</span>

@@ -47,10 +47,10 @@ export const HUD: React.FC<HUDProps> = ({
       {/* Top Bar */}
       <div className="flex justify-between items-start w-full gap-2 sm:gap-4 flex-nowrap">
         {/* Left Side: Stats & Weapon */}
-        <div className="flex flex-col gap-3 sm:gap-4 shrink-0">
-          <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-2 sm:p-3 sm:px-4 rounded-xl sm:rounded-2xl flex items-center gap-4 sm:gap-6 shadow-2xl">
+        <div className="flex flex-col gap-2 sm:gap-4 shrink-0 overflow-hidden">
+          <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-1.5 sm:p-3 sm:px-4 rounded-xl sm:rounded-2xl flex items-center gap-2 sm:gap-6 shadow-2xl">
             {/* Health */}
-            <div className="flex flex-col gap-1 min-w-[90px] xs:min-w-[100px] sm:min-w-[120px]">
+            <div className="flex flex-col gap-1 min-w-[70px] xs:min-w-[100px] sm:min-w-[120px]">
               <div className="flex items-center justify-between text-[7px] font-black tracking-widest uppercase text-rose-500/80">
                 <div className="flex items-center gap-1">
                   <Heart className="w-2 h-2 fill-rose-500" />
@@ -73,7 +73,7 @@ export const HUD: React.FC<HUDProps> = ({
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-1">
                 <Zap className="w-2 h-2 text-sky-400 fill-sky-400/20" />
-                <span className="text-[7px] font-black tracking-widest uppercase text-sky-400/80">Forgotten Souls</span>
+                <span className="text-[6px] xs:text-[7px] font-black tracking-widest uppercase text-sky-400/80 truncate max-w-[50px] xs:max-w-none">Souls</span>
               </div>
               <span className="text-sm sm:text-xl font-mono text-white leading-none tracking-widest font-bold tabular-nums">
                 {score.toString().padStart(6, '0')}
@@ -152,7 +152,7 @@ export const HUD: React.FC<HUDProps> = ({
           soundManager.resume();
           onPause();
         }}
-        className="absolute top-4 right-4 p-4 bg-slate-950/60 border border-sky-400/30 rounded-full pointer-events-auto backdrop-blur-md shadow-[0_0_15px_rgba(56,189,248,0.2)] active:scale-90 transition-all flex items-center justify-center sm:hidden"
+        className="absolute top-4 right-4 p-4 bg-slate-950/60 border border-sky-400/30 rounded-full pointer-events-auto backdrop-blur-md shadow-[0_0_15px_rgba(56,189,248,0.2)] active:scale-90 transition-all flex items-center justify-center lg:hidden"
       >
         <Pause className="w-5 h-5 text-sky-400/80 fill-sky-400/20" />
       </button>
@@ -167,26 +167,26 @@ export const MobileControls: React.FC<{
   onWeaponToggle: () => void;
 }> = ({ onStart, onEnd, weapon, onWeaponToggle }) => {
   return (
-    <div className="absolute inset-0 z-50 pointer-events-none flex flex-col justify-end p-2 pb-6 sm:hidden">
-      <div className="flex justify-between items-end w-full pointer-events-auto">
+    <div className="absolute inset-0 z-50 pointer-events-none flex flex-col justify-end p-4 pb-8 lg:hidden">
+      <div className="flex justify-between items-end w-full pointer-events-none">
         {/* Movement */}
-        <div className="flex gap-2">
-          <button onPointerDown={() => onStart('left')} onPointerUp={() => onEnd('left')} className="w-14 h-14 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/5 flex items-center justify-center shadow-xl"><Wind className="w-8 h-8 text-white/80 rotate-180" /></button>
-          <button onPointerDown={() => onStart('right')} onPointerUp={() => onEnd('right')} className="w-14 h-14 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/5 flex items-center justify-center shadow-xl"><Wind className="w-8 h-8 text-white/80" /></button>
+        <div className="flex gap-4 pointer-events-auto">
+          <button onPointerDown={() => onStart('left')} onPointerUp={() => onEnd('left')} className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center justify-center shadow-2xl active:scale-95 active:bg-slate-800"><Wind className="w-8 h-8 sm:w-10 sm:h-10 text-white/80 rotate-180" /></button>
+          <button onPointerDown={() => onStart('right')} onPointerUp={() => onEnd('right')} className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center justify-center shadow-2xl active:scale-95 active:bg-slate-800"><Wind className="w-8 h-8 sm:w-10 sm:h-10 text-white/80" /></button>
         </div>
 
-        {/* weapon swap */}
-        <div className="absolute right-4 bottom-44 pointer-events-auto">
-          <button onClick={onWeaponToggle} className="w-12 h-12 bg-sky-600/20 backdrop-blur-xl rounded-full border border-sky-400/30 flex flex-col items-center justify-center"><RotateCcw className="w-4 h-4 text-sky-400 mb-0.5" /><span className="text-[6px] font-black text-sky-400 uppercase tracking-tighter">Swap</span></button>
+        {/* Center: weapon swap for easier reach */}
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-8 pointer-events-auto">
+          <button onClick={onWeaponToggle} className="w-14 h-14 bg-sky-600/20 backdrop-blur-xl rounded-full border border-sky-400/40 flex flex-col items-center justify-center active:scale-90 shadow-lg"><RotateCcw className="w-5 h-5 text-sky-400 mb-0.5" /><span className="text-[7px] font-black text-sky-400 uppercase tracking-tighter">Swap</span></button>
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-3 items-end">
-          <button onPointerDown={() => onStart('jump')} onPointerUp={() => onEnd('jump')} className="w-18 h-18 bg-sky-500/10 backdrop-blur-xl rounded-full border-2 border-sky-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(14,165,233,0.2)]"><div className="w-6 h-6 border-2 border-sky-400/60 rounded-sm rotate-45" /></button>
-          <div className="flex gap-2">
-            <button onPointerDown={() => onStart('magic')} onPointerUp={() => onEnd('magic')} className="w-14 h-14 bg-purple-500/10 backdrop-blur-xl rounded-2xl border border-purple-500/40 flex items-center justify-center"><Sparkles className="w-6 h-6 text-purple-400" /></button>
-            <button onPointerDown={() => onStart('block')} onPointerUp={() => onEnd('block')} className="w-14 h-14 bg-sky-500/10 backdrop-blur-xl rounded-2xl border border-sky-500/40 flex items-center justify-center"><Shield className="w-6 h-6 text-sky-400" /></button>
-            <button onPointerDown={() => onStart('attack')} onPointerUp={() => onEnd('attack')} className="w-18 h-18 bg-rose-600/30 backdrop-blur-xl rounded-3xl border border-rose-500/50 flex items-center justify-center shadow-[0_0_30px_rgba(225,29,72,0.2)]">{weapon === 'SWORD' ? <Sword className="w-8 h-8 text-white/90" /> : <Zap className="w-7 h-7 text-sky-400" />}</button>
+        <div className="flex flex-col gap-4 items-end pointer-events-auto">
+          <button onPointerDown={() => onStart('jump')} onPointerUp={() => onEnd('jump')} className="w-20 h-20 sm:w-24 sm:h-24 bg-sky-500/10 backdrop-blur-xl rounded-full border-2 border-sky-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(14,165,233,0.2)] active:scale-95 active:bg-sky-500/20"><div className="w-6 h-6 border-2 border-sky-400/60 rounded-sm rotate-45" /></button>
+          <div className="flex gap-3">
+            <button onPointerDown={() => onStart('magic')} onPointerUp={() => onEnd('magic')} className="w-16 h-16 bg-purple-500/10 backdrop-blur-xl rounded-2xl border border-purple-500/40 flex items-center justify-center active:scale-90"><Sparkles className="w-6 h-6 text-purple-400" /></button>
+            <button onPointerDown={() => onStart('block')} onPointerUp={() => onEnd('block')} className="w-16 h-16 bg-sky-500/10 backdrop-blur-xl rounded-2xl border border-sky-500/40 flex items-center justify-center active:scale-90"><Shield className="w-6 h-6 text-sky-400" /></button>
+            <button onPointerDown={() => onStart('attack')} onPointerUp={() => onEnd('attack')} className="w-20 h-20 sm:w-24 sm:h-24 bg-rose-600/30 backdrop-blur-xl rounded-3xl border border-rose-500/50 flex items-center justify-center shadow-[0_0_40px_rgba(225,29,72,0.3)] active:scale-95 active:bg-rose-600/50">{weapon === 'SWORD' ? <Sword className="w-10 h-10 text-white" /> : <Zap className="w-9 h-9 text-sky-400" />}</button>
           </div>
         </div>
       </div>
