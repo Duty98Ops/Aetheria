@@ -1221,9 +1221,28 @@ class Enemy extends Entity {
 
     const distToPlayer = Math.hypot(player.pos.x - this.pos.x, player.pos.y - this.pos.y);
     
+    // Line of Sight check helper
+    const hasLOS = () => {
+      if (distToPlayer > 400) return false;
+      const startX = (this.pos.x + this.width / 2) / TILE_SIZE;
+      const startY = (this.pos.y + this.height / 2) / TILE_SIZE;
+      const endX = (player.pos.x + player.width / 2) / TILE_SIZE;
+      const endY = (player.pos.y + player.height / 2) / TILE_SIZE;
+      const steps = 10; // Simple sampled LOS
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const checkX = Math.floor(startX + (endX - startX) * t);
+        const checkY = Math.floor(startY + (endY - startY) * t);
+        if (checkY >= 0 && checkY < level.length && checkX >= 0 && checkX < level[0].length) {
+          if (level[checkY][checkX] === 1) return false;
+        }
+      }
+      return true;
+    };
+
     if (this.type === 'ELITE') {
       // Elite Logic: Tactical Chase & Dash
-      if (distToPlayer < 400) {
+      if (hasLOS()) {
         this.direction = player.pos.x > this.pos.x ? 1 : -1;
         
         if (distToPlayer < 200 && this.dashCooldown <= 0) {
@@ -2290,6 +2309,7 @@ export default function App() {
                 <AnimatePresence>
                   {bossMessage && (
                     <motion.div 
+                      key="boss-alert-msg"
                       initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
                       className="bg-sky-500/10 backdrop-blur-xl border border-sky-400/30 px-6 py-2 rounded-full shadow-[0_0_30px_rgba(14,165,233,0.2)]"
                     >
@@ -2446,6 +2466,7 @@ export default function App() {
         <AnimatePresence>
           {(bossActive && bossHP > 0) && (
             <motion.div 
+              key="boss-hp-bar"
               initial={{ y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -50, opacity: 0 }}
@@ -2474,6 +2495,7 @@ export default function App() {
         <AnimatePresence>
           {isTransitioning && (
             <motion.div 
+              key="scene-transition"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 z-[100] bg-black flex items-center justify-center pointer-events-none"
             >
@@ -2540,6 +2562,7 @@ export default function App() {
         <AnimatePresence>
           {showSaved && (
             <motion.div
+              key="save-status"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -2551,6 +2574,7 @@ export default function App() {
           )}
           {(gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'GAMEOVER' || gameState === 'ENDING') && (
             <motion.div 
+              key={`game-state-overlay-${gameState}`}
               initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
               animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
               exit={{ opacity: 0 }}
