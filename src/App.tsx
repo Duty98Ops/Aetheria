@@ -47,7 +47,7 @@ const THEMES = [
 ];
 
 // --- TYPES ---
-type EntityType = 'PLAYER' | 'ENEMY_BASIC' | 'ENEMY_ADVANCED' | 'COLLECTIBLE' | 'PARTICLE';
+type EntityType = 'PLAYER' | 'ENEMY_BASIC' | 'ENEMY_ADVANCED' | 'ENEMY_ELITE' | 'COLLECTIBLE' | 'PARTICLE';
 
 interface Rect {
   x: number;
@@ -967,41 +967,79 @@ class FallenAscendant extends Entity {
 }
 
 class Enemy extends Entity {
-  public type: 'BASIC' | 'ADVANCED' = 'BASIC';
+  public type: 'BASIC' | 'ADVANCED' | 'ELITE' = 'BASIC';
   public patrolRange = 100;
   public startX = 0;
   public direction = 1;
   public speed = 1.5;
   public initialPos: Vector;
-  public initialType: 'BASIC' | 'ADVANCED';
+  public initialType: 'BASIC' | 'ADVANCED' | 'ELITE';
   public baseHp: number;
   public animFrame = 0;
   public hitFlash = 0;
+  public dashCooldown = 0;
+  public isDashing = false;
 
-  constructor(x: number, y: number, type: 'BASIC' | 'ADVANCED' = 'BASIC', scale: number = 1) {
+  constructor(x: number, y: number, type: 'BASIC' | 'ADVANCED' | 'ELITE' = 'BASIC', scale: number = 1) {
     super();
     this.pos = new Vector(x, y);
     this.initialPos = new Vector(x, y);
     this.initialType = type;
     this.startX = x;
     this.type = type;
-    this.baseHp = type === 'ADVANCED' ? 60 : 30;
+    
+    if (type === 'ELITE') {
+      this.baseHp = 180;
+      this.speed = 2.0 * (1 + (scale - 1) * 0.5);
+      this.width = 44;
+      this.height = 44;
+    } else {
+      this.baseHp = type === 'ADVANCED' ? 60 : 30;
+      this.speed = (type === 'ADVANCED' ? 2.5 : 1.5) * (1 + (scale - 1) * 0.5);
+      this.width = 32;
+      this.height = 32;
+    }
+    
     this.hp = this.baseHp * scale;
-    this.speed = (type === 'ADVANCED' ? 2.5 : 1.5) * (1 + (scale - 1) * 0.5);
-    this.width = 32;
-    this.height = 32;
   }
 
   update(player: Player, level: number[][], particles: Particle[], difficultyScale: number) {
     this.animFrame += 0.1;
     if (this.hitFlash > 0) this.hitFlash -= 16;
+    if (this.dashCooldown > 0) this.dashCooldown -= 16;
+    
     if (this.isDead) {
       return;
     }
 
     const distToPlayer = Math.hypot(player.pos.x - this.pos.x, player.pos.y - this.pos.y);
     
-    if (this.type === 'ADVANCED' && distToPlayer < 200) {
+    if (this.type === 'ELITE') {
+      // Elite Logic: Tactical Chase & Dash
+      if (distToPlayer < 400) {
+        this.direction = player.pos.x > this.pos.x ? 1 : -1;
+        
+        if (distToPlayer < 200 && this.dashCooldown <= 0) {
+          this.isDashing = true;
+          this.dashCooldown = 2000;
+          setTimeout(() => { this.isDashing = false; }, 400);
+        }
+
+        const moveSpeed = this.isDashing ? this.speed * 4 : this.speed;
+        this.vel.x = this.direction * moveSpeed;
+        
+        // Elite particles
+        if (this.isDashing && Math.random() > 0.5) {
+          particles.push(new Particle(new Vector(this.pos.x + this.width/2, this.pos.y + this.height/2), new Vector(0,0), '#f8fafc', 4, 0.1));
+        }
+      } else {
+        // Patrol
+        if (Math.abs(this.pos.x - this.startX) > this.patrolRange) {
+          this.direction *= -1;
+        }
+        this.vel.x = this.direction * this.speed;
+      }
+    } else if (this.type === 'ADVANCED' && distToPlayer < 200) {
       // Chase
       this.direction = player.pos.x > this.pos.x ? 1 : -1;
       this.vel.x = this.direction * this.speed;
@@ -1018,7 +1056,10 @@ class Enemy extends Entity {
 
     // Check collision with player
     if (this.checkCollision(this.rect, player.rect)) {
-      player.takeDamage(10);
+      player.takeDamage(this.type === 'ELITE' ? 20 : 10);
+      if (this.isDashing) {
+        this.isDashing = false; // End dash on hit
+      }
     }
 
     // Check if hit by player attack
@@ -1043,11 +1084,12 @@ class Enemy extends Entity {
     soundManager.playSFX(ASSETS.SFX_HIT);
     
     // Hit particles
-    for (let i = 0; i < 5; i++) {
+    const particleColor = this.type === 'BASIC' ? '#f87171' : (this.type === 'ADVANCED' ? '#f472b6' : '#94a3b8');
+    for (let i = 0; i < (this.type === 'ELITE' ? 10 : 5); i++) {
         particles.push(new Particle(
           new Vector(this.pos.x + this.width / 2, this.pos.y + this.height / 2),
           new Vector((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6),
-          this.type === 'BASIC' ? '#f87171' : '#f472b6',
+          particleColor,
           3,
           0.05
         ));
@@ -1055,16 +1097,17 @@ class Enemy extends Entity {
 
     if (this.hp <= 0) {
       this.isDead = true;
-      player.score += Math.round(100 * (1 + (player.score / 10000))); // Dynamic score based on progression
+      const scoreGain = this.type === 'ELITE' ? 1000 : 100;
+      player.score += Math.round(scoreGain * (1 + (player.score / 10000))); // Dynamic score based on progression
       soundManager.playSFX(ASSETS.SFX_DEATH);
       
       // Death explosion
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < (this.type === 'ELITE' ? 30 : 15); i++) {
         particles.push(new Particle(
           new Vector(this.pos.x + this.width / 2, this.pos.y + this.height / 2),
-          new Vector((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10),
+          new Vector((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
           '#fbbf24',
-          4,
+          this.type === 'ELITE' ? 6 : 4,
           0.02
         ));
       }
@@ -1115,7 +1158,7 @@ class Enemy extends Entity {
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(screenX + 10, screenY + 16, 4, 4);
       ctx.fillRect(screenX + 18, screenY + 16, 4, 4);
-    } else {
+    } else if (this.type === 'ADVANCED') {
       // Wraith Style
       const hover = Math.sin(this.animFrame) * 8;
       ctx.fillStyle = 'rgba(168, 85, 247, 0.4)'; // Ghostly Purple
@@ -1138,6 +1181,36 @@ class Enemy extends Entity {
       ctx.shadowColor = '#fff';
       ctx.fillRect(screenX + 12, screenY + 10 + hover, 8, 4);
       ctx.shadowBlur = 0;
+    } else {
+      // ELITE: Heavy Armored Knight / Golem
+      const bounce = Math.sin(this.animFrame * 1.5) * 4;
+      
+      // Armor Silhouette
+      ctx.fillStyle = '#020617';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#38bdf8';
+      ctx.beginPath();
+      ctx.roundRect(screenX, screenY + bounce, this.width, this.height, 8);
+      ctx.fill();
+      
+      // Glowing Plates
+      ctx.fillStyle = '#38bdf8';
+      ctx.globalAlpha = 0.6 + Math.sin(this.animFrame * 4) * 0.4;
+      ctx.fillRect(screenX + 4, screenY + 10 + bounce, this.width - 8, 4);
+      ctx.fillRect(screenX + 4, screenY + 25 + bounce, this.width - 8, 4);
+      ctx.globalAlpha = 1.0;
+      
+      // Helmet Eye Slit
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(screenX + (this.direction === 1 ? 28 : 6), screenY + 12 + bounce, 10, 4);
+      ctx.shadowBlur = 0;
+      
+      // Dash Effect
+      if (this.isDashing) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(screenX - (this.direction * 10), screenY + bounce, this.width, this.height);
+      }
     }
     ctx.restore();
 }
@@ -1458,6 +1531,7 @@ export default function App() {
       
       const basicCount = 2 + selectedRoom;
       const advancedCount = selectedRoom > 0 ? 1 + Math.floor(selectedRoom / 2) : 0;
+      const eliteCount = (selectedRoom >= 2 || type === 'ELITE') ? 1 + Math.floor(selectedRoom / 3) : 0;
       
       engine.enemies = [];
       
@@ -1465,15 +1539,20 @@ export default function App() {
       const sources = safePositions.length > 0 ? safePositions : floorPositions;
       const shuffled = [...sources].sort(() => Math.random() - 0.5);
       
-      console.log(`[Game] Spawning ${basicCount} basic and ${advancedCount} advanced enemies into room ${selectedRoom}`);
+      console.log(`[Game] Spawning ${basicCount} basic, ${advancedCount} advanced, and ${eliteCount} elite enemies into room ${selectedRoom}`);
       
-      for(let i=0; i<basicCount && i < shuffled.length; i++) {
-        const p = shuffled[i];
+      let spawnedCount = 0;
+      for(let i=0; i<basicCount && spawnedCount < shuffled.length; i++) {
+        const p = shuffled[spawnedCount++];
         engine.enemies.push(new Enemy(p.x, p.y, 'BASIC', scale));
       }
-      for(let i=0; i<advancedCount && (i + basicCount) < shuffled.length; i++) {
-        const p = shuffled[i + basicCount];
+      for(let i=0; i<advancedCount && spawnedCount < shuffled.length; i++) {
+        const p = shuffled[spawnedCount++];
         engine.enemies.push(new Enemy(p.x, p.y, 'ADVANCED', scale));
+      }
+      for(let i=0; i<eliteCount && spawnedCount < shuffled.length; i++) {
+        const p = shuffled[spawnedCount++];
+        engine.enemies.push(new Enemy(p.x, p.y, 'ELITE', scale));
       }
     }
     
