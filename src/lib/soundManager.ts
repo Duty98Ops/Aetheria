@@ -92,26 +92,26 @@ class SoundManager {
     if (!url) return;
     
     // Prevent re-playing the same BGM
-    // We check endsWith or includes but carefully
     if (this.bgm && (this.bgm.src === url || this.bgm.src.endsWith(url))) {
         if (this.bgm.paused) {
-          this.bgm.play().catch(() => {
-            console.warn("BGM play failed - interaction required");
-          });
+          this.bgm.play().catch(() => {});
         }
         return;
     }
 
     const startNewBGM = () => {
-        this.bgm = new Audio();
-        this.bgm.src = url;
-        this.bgm.loop = true;
-        this.bgm.volume = 0;
+        const audio = new Audio();
+        audio.src = url;
+        audio.loop = true;
+        audio.volume = 0;
+        audio.preload = 'auto';
         
-        const playPromise = this.bgm.play();
+        this.bgm = audio;
+        
+        const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.then(() => {
-              this.fadeIn(this.bgm!, this.isMuted ? 0 : this.masterVolume * this.musicVolume);
+              this.fadeIn(audio, this.isMuted ? 0 : this.masterVolume * this.musicVolume);
           }).catch(e => {
               console.warn("Audio play blocked: awaiting user interaction.", e);
           });
@@ -119,10 +119,13 @@ class SoundManager {
     };
 
     if (this.bgm) {
-        this.fadeOut(this.bgm, () => {
-            this.bgm?.pause();
-            this.bgm = null; // Clear old BGM
-            startNewBGM();
+        const oldBgm = this.bgm;
+        this.fadeOut(oldBgm, () => {
+            oldBgm.pause();
+            if (this.bgm === oldBgm) {
+              this.bgm = null;
+              startNewBGM();
+            }
         });
     } else {
         startNewBGM();
@@ -202,8 +205,9 @@ class SoundManager {
     if (this.bgm && this.bgm.paused) {
       this.bgm.play().catch(() => {});
     }
-    // Also try to prime SFX by playing a silent or very short sound if needed?
-    // Usually one successful play opens the gate for all.
+    // "Warm up" SFX - browsers often need one successful play to unlock the session
+    const silent = new Audio();
+    silent.play().catch(() => {});
   }
 
   getSettings() {

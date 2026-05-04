@@ -10,9 +10,9 @@ import { soundManager } from './lib/soundManager';
 
 // --- CONSTANTS ---
 const ASSETS = {
-  BGM_MENU: 'https://assets.mixkit.co/music/preview/mixkit-creepy-mysterious-ambient-147.mp3', // Creepy Ambient
-  BGM_GAME: 'https://assets.mixkit.co/music/preview/mixkit-mysterious-dark-cave-81.mp3', // Dark Fantasy Cave
-  BGM_BOSS: 'https://assets.mixkit.co/music/preview/mixkit-epic-heroic-action-music-117.mp3', // Epic Combat
+  BGM_MENU: 'https://ia800100.us.archive.org/21/items/rpg_ambient_music/Ambient_Loop_1.mp3',
+  BGM_GAME: 'https://ia800100.us.archive.org/21/items/rpg_ambient_music/Ambient_Loop_2.mp3',
+  BGM_BOSS: 'https://ia800100.us.archive.org/21/items/rpg_ambient_music/Combat_Loop.mp3',
   SFX_SWING: 'https://cdn.pixabay.com/audio/2022/03/15/audio_7322a30b35.mp3', 
   SFX_DASH: 'https://cdn.pixabay.com/audio/2021/08/04/audio_32c0299f2b.mp3',
   SFX_HIT: 'https://cdn.pixabay.com/audio/2022/03/10/audio_f139fd1639.mp3',
@@ -1328,8 +1328,14 @@ export default function App() {
       engineRef.current.input[e.key.toLowerCase()] = false;
       engineRef.current.input[e.key] = false;
     };
+
+    const handleMouseInteraction = () => {
+      soundManager.resume();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('mousedown', handleMouseInteraction);
 
     // Initial check for save
     if (localStorage.getItem(SAVE_KEY)) {
