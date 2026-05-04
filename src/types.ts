@@ -39,3 +39,17 @@ export interface TowerNode {
   connections: number[];
   room: number;
 }
+
+export type HazardType = 'FALLING_DEBRIS' | 'VOID_ZONE' | 'LIGHTNING';
+
+export interface HazardData {
+  id: string;
+  type: HazardType;
+  pos: { x: number; y: number };
+  width: number;
+  height: number;
+  timer: number;
+  duration: number;
+  damage: number;
+  warning: boolean;
+}

@@ -14,6 +14,7 @@ import { Enemy, gx_out_of_bounds } from './engine/Enemy';
 import { FallenAscendant } from './engine/Boss';
 import { Particle } from './engine/Particle';
 import { Projectile } from './engine/Projectile';
+import { Hazard } from './engine/Hazard';
 import { HUD, MobileControls } from './components/HUD';
 import { 
   TILE_SIZE, 
@@ -159,6 +160,7 @@ export default function App() {
   const engineRef = useRef({
     player: new Player(),
     enemies: [] as Enemy[],
+    hazards: [] as Hazard[],
     particles: [] as Particle[],
     projectiles: [] as Projectile[],
     input: {} as { [key: string]: boolean },
@@ -275,6 +277,7 @@ export default function App() {
     engine.portalOpen = false;
     engine.portalLock = false;
     engine.boss = null;
+    engine.hazards = [];
     engine.projectiles = [];
     engine.escapeActive = false;
     engine.escapeDuration = 60000;
@@ -391,6 +394,15 @@ export default function App() {
       setEscapeTimer(Math.max(0, remainingTime));
       engine.escapeDuration -= 16;
       engine.shakeIntensity = Math.max(engine.shakeIntensity, 1.5);
+
+      // Random Falling hazards during escape
+      if (Math.random() < 0.03) {
+        const hX = player.pos.x + (Math.random() - 0.5) * 800;
+        const h = new Hazard('FALLING_DEBRIS', hX, player.pos.y - 400, 15, 24, 24);
+        h.warningDuration = 500;
+        engine.hazards.push(h);
+      }
+
       if (engine.escapeDuration <= 0) {
         setGameState('GAMEOVER');
       }
@@ -437,6 +449,13 @@ export default function App() {
     if (boss) {
       boss.update(player, level, particles, engine);
       setBossHP(boss.hp);
+
+      // Phase 2 hazards
+      if (boss.phase === 2 && Math.random() < 0.01) {
+        const hX = player.pos.x + (Math.random() - 0.5) * 400;
+        engine.hazards.push(new Hazard('VOID_ZONE', hX, player.pos.y, 10, 64, 32));
+      }
+
       if (boss.isDead) {
         const isLastRoom = room === MAPS.length - 1;
         if (isLastRoom && !engine.escapeActive) {
@@ -456,6 +475,10 @@ export default function App() {
           setPortalOpen(true);
         }
       }
+    } else if (enemies.length > 0 && Math.random() < 0.005) {
+      const hX = player.pos.x + (Math.random() - 0.5) * 600;
+      const h = new Hazard('FALLING_DEBRIS', hX, player.pos.y - 400, 10, 24, 24);
+      engine.hazards.push(h);
     }
 
     enemies.forEach(enemy => {
@@ -482,6 +505,10 @@ export default function App() {
     const activeEnemies = enemies.filter(e => !e.isDead);
     engine.enemies = activeEnemies;
     engine.projectiles = engine.projectiles.filter(p => !p.isDead);
+
+    // Update Hazards
+    engine.hazards.forEach(h => h.update(player, particles, level, engine));
+    engine.hazards = engine.hazards.filter(h => !h.isFinished);
 
     const remainingCount = activeEnemies.length + (boss && !boss.isDead ? 1 : 0);
     const accurateDefeated = Math.max(0, totalEnemies - remainingCount);
@@ -646,6 +673,7 @@ export default function App() {
 
     if (boss) boss.draw(ctx, currentCamera);
     enemies.forEach(enemy => enemy.draw(ctx, currentCamera));
+    engineRef.current.hazards.forEach(h => h.draw(ctx, currentCamera));
     engineRef.current.projectiles.forEach(p => p.draw(ctx, currentCamera));
     player.draw(ctx, currentCamera);
     particles.forEach(p => p.draw(ctx, currentCamera));
