@@ -58,7 +58,7 @@ export class Hazard extends Entity {
         // Wall collision for debris
         const gx = Math.floor((this.pos.x + this.width / 2) / TILE_SIZE);
         const gy = Math.floor((this.pos.y + this.height) / TILE_SIZE);
-        if (gy < level.length && gx < level[0].length && level[gy][gx] === 1) {
+        if (gy >= 0 && gy < level.length && gx >= 0 && gx < level[0].length && level[gy][gx] === 1) {
           this.isFinished = true;
           engine.shakeIntensity = Math.max(engine.shakeIntensity, 5);
         }
