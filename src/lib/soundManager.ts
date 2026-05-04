@@ -89,125 +89,28 @@ class SoundManager {
    * Plays background music with smooth transition
    */
   playBGM(url: string) {
-    if (!url) return;
-    
-    // Prevent re-playing the same BGM
-    if (this.bgm && (this.bgm.src === url || this.bgm.src.endsWith(url))) {
-        if (this.bgm.paused) {
-          this.bgm.play().catch(() => {});
-        }
-        return;
-    }
-
-    const startNewBGM = () => {
-        const audio = new Audio();
-        audio.src = url;
-        audio.loop = true;
-        audio.volume = 0;
-        audio.preload = 'auto';
-        
-        this.bgm = audio;
-        
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-              this.fadeIn(audio, this.isMuted ? 0 : this.masterVolume * this.musicVolume);
-          }).catch(e => {
-              console.warn("Audio play blocked: awaiting user interaction.", e);
-          });
-        }
-    };
-
-    if (this.bgm) {
-        const oldBgm = this.bgm;
-        this.fadeOut(oldBgm, () => {
-            oldBgm.pause();
-            if (this.bgm === oldBgm) {
-              this.bgm = null;
-              startNewBGM();
-            }
-        });
-    } else {
-        startNewBGM();
-    }
+    // Audio disabled as requested
   }
 
   private fadeIn(audio: HTMLAudioElement, targetVolume: number) {
-      if (audio.paused) return; // Don't fade in if not playing
-      let v = 0;
-      const step = 0.05;
-      const interval = setInterval(() => {
-          v += step;
-          if (v >= targetVolume || audio.paused) {
-              audio.volume = targetVolume;
-              clearInterval(interval);
-          } else {
-              audio.volume = v;
-          }
-      }, 30);
   }
 
   private fadeOut(audio: HTMLAudioElement, callback: () => void) {
-      let v = audio.volume;
-      const step = 0.1;
-      const interval = setInterval(() => {
-          v -= step;
-          if (v <= 0) {
-              audio.volume = 0;
-              clearInterval(interval);
-              callback();
-          } else {
-              audio.volume = v;
-          }
-      }, 30);
+      callback();
   }
 
   /**
    * Plays SFX using pooling to prevent lag
    */
   playSFX(url: string) {
-    if (this.isMuted || this.masterVolume <= 0 || this.sfxVolume <= 0) return;
-
-    let pool = this.sfxPool.get(url);
-    if (!pool) {
-      pool = [];
-      this.sfxPool.set(url, pool);
-    }
-
-    let sfx = pool.find(a => a.paused || a.ended);
-    if (!sfx) {
-      if (pool.length < this.poolSize) {
-        sfx = new Audio(url);
-        pool.push(sfx);
-      } else {
-        sfx = pool[0];
-        sfx.pause();
-        sfx.currentTime = 0;
-      }
-    } else {
-        sfx.currentTime = 0;
-    }
-
-    sfx.volume = this.masterVolume * this.sfxVolume;
-    const playPromise = sfx.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(e => {
-          // Silently fail
-      });
-    }
+    // Audio disabled as requested
   }
 
   /**
    * Resumes audio after user interaction. 
-   * Crucial for solving "Autoplay" blocks.
    */
   resume() {
-    if (this.bgm && this.bgm.paused) {
-      this.bgm.play().catch(() => {});
-    }
-    // "Warm up" SFX - browsers often need one successful play to unlock the session
-    const silent = new Audio();
-    silent.play().catch(() => {});
+    // Audio disabled as requested
   }
 
   getSettings() {
