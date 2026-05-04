@@ -269,12 +269,22 @@ class Entity {
 class Projectile extends Entity {
   public life = 2000;
   public owner: 'PLAYER' | 'ENEMY';
-  constructor(x: number, y: number, vx: number, vy: number, owner: 'PLAYER' | 'ENEMY', public color: string = '#fff') {
+  constructor(
+    x: number, 
+    y: number, 
+    vx: number, 
+    vy: number, 
+    owner: 'PLAYER' | 'ENEMY', 
+    public color: string = '#fff',
+    public damage: number = 15,
+    w: number = 10,
+    h: number = 4
+  ) {
     super();
     this.pos = new Vector(x, y);
     this.vel = new Vector(vx, vy);
-    this.width = 10;
-    this.height = 4;
+    this.width = w;
+    this.height = h;
     this.owner = owner;
   }
 
@@ -1469,6 +1479,7 @@ export default function App() {
     if (key === 'jump') engineRef.current.input[' '] = true;
     if (key === 'attack') engineRef.current.input['z'] = true;
     if (key === 'dash') engineRef.current.input['shift'] = true;
+    if (key === 'magic') engineRef.current.input['v'] = true;
     if (key === 'block') {
       engineRef.current.input['x'] = true;
       engineRef.current.input['x_pressed'] = true;
@@ -1484,6 +1495,7 @@ export default function App() {
     if (key === 'jump') engineRef.current.input[' '] = false;
     if (key === 'attack') engineRef.current.input['z'] = false;
     if (key === 'dash') engineRef.current.input['shift'] = false;
+    if (key === 'magic') engineRef.current.input['v'] = false;
     if (key === 'block') engineRef.current.input['x'] = false;
   };
 
@@ -1815,18 +1827,33 @@ export default function App() {
     }
 
     if (player.isMagicAttacking) {
-       // Magic energy wave
-       for(let i=0; i<3; i++) {
-         const v = new Vector(player.facing * 12, (i-1)*2);
-         engine.projectiles.push(new Projectile(
-           player.pos.x + (player.facing === 1 ? player.width : -10),
-           player.pos.y + 10,
-           v.x,
-           v.y,
-           'PLAYER',
-           '#a855f7'
+       // --- POWERFUL VOID BOLT ---
+       // Large, high-velocity projectile
+       engine.projectiles.push(new Projectile(
+         player.pos.x + (player.facing === 1 ? player.width : -20),
+         player.pos.y + 10,
+         player.facing * 16, // High speed
+         0,
+         'PLAYER',
+         '#a855f7', // Void purple
+         60,        // High damage
+         24,        // Width
+         12         // Height
+       ));
+
+       // Visual recoil and effects
+       engine.shakeIntensity = 10;
+       soundManager.playSFX(ASSETS.SFX_PORTAL); 
+       for(let i=0; i<15; i++) {
+         particles.push(new Particle(
+           new Vector(player.pos.x + player.width/2, player.pos.y + player.height/2),
+           new Vector((Math.random()-0.5)*8, (Math.random()-0.5)*8),
+           '#7e22ce',
+           3 + Math.random()*3,
+           0.02
          ));
        }
+       
        player.isMagicAttacking = false;
     }
 
@@ -1871,12 +1898,12 @@ export default function App() {
       if (p.owner === 'PLAYER') {
         enemies.forEach(enemy => {
           if (!enemy.isDead && enemy.checkCollision(p.rect, enemy.rect)) {
-            enemy.takeDamage(15, particles, player);
+            enemy.takeDamage(p.damage, particles, player);
             p.isDead = true;
           }
         });
         if (boss && !boss.isDead && boss.checkCollision(p.rect, boss.rect)) {
-          boss.takeDamage(15, particles, player);
+          boss.takeDamage(p.damage, particles, player);
           p.isDead = true;
         }
       }
@@ -2319,6 +2346,13 @@ export default function App() {
                   <div className="w-6 h-6 border-2 border-sky-400/60 rounded-sm rotate-45" />
                 </button>
                 <div className="flex gap-2">
+                  <button 
+                    onPointerDown={() => handleTouchStart('magic')}
+                    onPointerUp={() => handleTouchEnd('magic')}
+                    className="w-14 h-14 bg-purple-500/10 backdrop-blur-xl rounded-2xl border border-purple-500/40 flex items-center justify-center active:scale-90 transition-all"
+                  >
+                    <Sparkles className="w-6 h-6 text-purple-400" />
+                  </button>
                   <button 
                     onPointerDown={() => handleTouchStart('block')}
                     onPointerUp={() => handleTouchEnd('block')}
