@@ -269,6 +269,7 @@ class Entity {
 class Projectile extends Entity {
   public life = 2000;
   public owner: 'PLAYER' | 'ENEMY';
+  public canPassWalls = false;
   constructor(
     x: number, 
     y: number, 
@@ -294,10 +295,12 @@ class Projectile extends Entity {
     if (this.life <= 0) this.isDead = true;
     
     // Wall collision
-    const gx = Math.floor(this.pos.x / TILE_SIZE);
-    const gy = Math.floor(this.pos.y / TILE_SIZE);
-    if (gy >= 0 && gy < level.length && gx >= 0 && gx < level[0].length) {
-      if (level[gy][gx] === 1) this.isDead = true;
+    if (!this.canPassWalls) {
+      const gx = Math.floor(this.pos.x / TILE_SIZE);
+      const gy = Math.floor(this.pos.y / TILE_SIZE);
+      if (gy >= 0 && gy < level.length && gx >= 0 && gx < level[0].length) {
+        if (level[gy][gx] === 1) this.isDead = true;
+      }
     }
   }
 
@@ -1237,6 +1240,11 @@ class Enemy extends Entity {
           particles.push(new Particle(new Vector(this.pos.x + this.width/2, this.pos.y + this.height/2), new Vector(0,0), '#f8fafc', 4, 0.1));
         }
       } else {
+        // Out of sight: Move to initial patrol but with occasional jumps
+        if (this.onGround && Math.random() < 0.02) {
+          this.vel.y = -8; // Jump up when "lost"
+        }
+        
         // Patrol
         if (Math.abs(this.pos.x - this.startX) > this.patrolRange) {
           this.direction *= -1;
@@ -1260,7 +1268,7 @@ class Enemy extends Entity {
 
     // Check collision with player
     if (this.checkCollision(this.rect, player.rect)) {
-      player.takeDamage(this.type === 'ELITE' ? 20 : 10, engine, this);
+      player.takeDamage(this.type === 'ELITE' ? 12 : 10, engine, this);
       if (this.isDashing) {
         this.isDashing = false; // End dash on hit
       }
@@ -1839,7 +1847,7 @@ export default function App() {
     if (player.isMagicAttacking) {
        // --- POWERFUL VOID BOLT ---
        // Large, high-velocity projectile
-       engine.projectiles.push(new Projectile(
+       const bolt = new Projectile(
          player.pos.x + (player.facing === 1 ? player.width : -20),
          player.pos.y + 10,
          player.facing * 16, // High speed
@@ -1849,7 +1857,9 @@ export default function App() {
          60,        // High damage
          24,        // Width
          12         // Height
-       ));
+       );
+       bolt.canPassWalls = true;
+       engine.projectiles.push(bolt);
 
        // Visual recoil and effects
        engine.shakeIntensity = 10;
@@ -1983,6 +1993,10 @@ export default function App() {
     
     if (touchingPortal && !isTransitioning) {
         setIsTransitioning(true);
+        const newHp = Math.min(100, engine.player.hp + 30);
+        engine.player.hp = newHp;
+        setHealth(newHp);
+
         const newClearedNodes = [...clearedNodes, currentMapNode];
         setClearedNodes(newClearedNodes);
         saveGame({ clearedNodes: newClearedNodes });
