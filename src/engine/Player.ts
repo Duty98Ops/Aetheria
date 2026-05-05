@@ -242,6 +242,19 @@ export class Player extends Entity {
       if (now - this.lastSwitchTime > 300) {
         this.weapon = this.weapon === 'SWORD' ? 'PISTOL' : 'SWORD';
         this.lastSwitchTime = now;
+        
+        // Weapon switch particles
+        const particleColor = this.weapon === 'SWORD' ? '#fff' : '#38bdf8';
+        for (let i = 0; i < 15; i++) {
+          particles.push(new Particle(
+            new Vector(this.pos.x + this.width / 2, this.pos.y + this.height / 2),
+            new Vector((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6),
+            particleColor,
+            Math.random() * 4 + 2,
+            0.04
+          ));
+        }
+        soundManager.playSFX(ASSETS.SFX_DASH);
       }
       delete input['q'];
       delete input['e'];

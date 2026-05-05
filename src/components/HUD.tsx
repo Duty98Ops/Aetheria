@@ -82,8 +82,22 @@ export const HUD: React.FC<HUDProps> = ({
           </div>
 
           <div className="bg-slate-950/80 backdrop-blur-xl border border-white/10 p-1 sm:p-1.5 sm:px-3 rounded-full flex items-center gap-1 sm:gap-3 shadow-lg self-start">
-             <Sword className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white/40" />
-             <span className="text-[6px] sm:text-[8px] font-black text-white/80 uppercase tracking-tighter italic">{weapon === 'SWORD' ? 'RUSTED CLAYMORE' : 'IRON ARBALEST'}</span>
+             <motion.div
+               key={weapon}
+               initial={{ scale: 0.8, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               transition={{ type: 'spring', damping: 12 }}
+             >
+                <Sword className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white/40" />
+             </motion.div>
+             <motion.span 
+               key={`text-${weapon}`}
+               initial={{ x: -10, opacity: 0 }}
+               animate={{ x: 0, opacity: 1 }}
+               className="text-[6px] sm:text-[8px] font-black text-white/80 uppercase tracking-tighter italic"
+             >
+               {weapon === 'SWORD' ? 'RUSTED CLAYMORE' : 'IRON ARBALEST'}
+             </motion.span>
              <span className="hidden sm:inline text-[7px] text-white/20 font-bold uppercase tracking-widest bg-white/5 px-1.5 rounded">[Q/E]</span>
           </div>
         </div>

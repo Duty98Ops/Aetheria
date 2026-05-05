@@ -42,6 +42,7 @@ export default function App() {
   const [cycle, setCycle] = useState(0);
   const [portalOpen, setPortalOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [weaponFlash, setWeaponFlash] = useState(false);
   
   const [bossActive, setBossActive] = useState(false);
   const [bossHP, setBossHP] = useState(0);
@@ -377,6 +378,31 @@ export default function App() {
     
     setScore(engine.player.score);
   };
+  
+  const toggleWeapon = () => {
+    const engine = engineRef.current;
+    if (!engine || !engine.player) return;
+    
+    engine.player.weapon = engine.player.weapon === 'SWORD' ? 'PISTOL' : 'SWORD';
+    setWeapon(engine.player.weapon);
+    setWeaponFlash(true);
+    setTimeout(() => setWeaponFlash(false), 150);
+    
+    // Spawn particles manually if we want to ensure they show up on UI click too
+    const particleColor = engine.player.weapon === 'SWORD' ? '#fff' : '#38bdf8';
+    for (let i = 0; i < 20; i++) {
+      engine.particles.push(new Particle(
+        new Vector(engine.player.pos.x + engine.player.width / 2, engine.player.pos.y + engine.player.height / 2),
+        new Vector((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8),
+        particleColor,
+        Math.random() * 5 + 2,
+        0.03
+      ));
+    }
+    
+    engine.shakeIntensity = 5;
+    soundManager.playSFX(ASSETS.SFX_DASH);
+  };
 
   const update = (_time: number) => {
     const engine = engineRef.current;
@@ -604,7 +630,12 @@ export default function App() {
 
     if (player.hp !== health) setHealth(player.hp);
     if (player.score !== score) setScore(player.score);
-    if (player.weapon !== weapon) setWeapon(player.weapon);
+    if (player.weapon !== weapon) {
+      setWeapon(player.weapon);
+      setWeaponFlash(true);
+      setTimeout(() => setWeaponFlash(false), 150);
+      engine.shakeIntensity = Math.max(engine.shakeIntensity, 3);
+    }
     if (player.isDead) setGameState('GAMEOVER');
   };
 
@@ -711,22 +742,28 @@ export default function App() {
             theme={theme} enemiesDefeated={enemiesDefeated} totalEnemies={totalEnemies} 
             portalOpen={portalOpen} bossMessage={bossMessage} escapeActive={gameState === 'ESCAPE'} 
             escapeTimer={escapeTimer} onPause={() => setGameState('PAUSED')} isMobile={isMobile}
-            onWeaponToggle={() => {
-              engineRef.current.player.weapon = engineRef.current.player.weapon === 'SWORD' ? 'PISTOL' : 'SWORD';
-              setWeapon(engineRef.current.player.weapon);
-            }}
+            onWeaponToggle={toggleWeapon}
           />
         )}
 
         {touchControlsActive && (gameState === 'PLAYING' || gameState === 'ESCAPE') && (
           <MobileControls 
             onStart={handleTouchStart} onEnd={handleTouchEnd} weapon={weapon} 
-            onWeaponToggle={() => {
-              engineRef.current.player.weapon = engineRef.current.player.weapon === 'SWORD' ? 'PISTOL' : 'SWORD';
-              setWeapon(engineRef.current.player.weapon);
-            }} 
+            onWeaponToggle={toggleWeapon} 
           />
         )}
+
+        {/* Global Weapon Switch Flash */}
+        <AnimatePresence>
+          {weaponFlash && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.3 }}
+              exit={{ opacity: 0 }}
+              className={`absolute inset-0 z-40 pointer-events-none ${weapon === 'SWORD' ? 'bg-white' : 'bg-sky-400'}`}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="absolute inset-0 pointer-events-none px-4 sm:px-10 flex flex-col justify-between">
