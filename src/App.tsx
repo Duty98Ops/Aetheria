@@ -696,10 +696,54 @@ export default function App() {
         } else if (tile === 2) {
           ctx.fillStyle = '#450a0a'; ctx.beginPath(); ctx.moveTo(tx, ty + TILE_SIZE); ctx.lineTo(tx + TILE_SIZE / 2, ty); ctx.lineTo(tx + TILE_SIZE, ty + TILE_SIZE); ctx.fill();
         } else if (tile === 4) {
-          const pulse = Math.sin(time / 200) * 0.2 + 0.3;
-          ctx.save(); ctx.shadowBlur = 30; ctx.shadowColor = '#fff';
-          ctx.fillStyle = `rgba(255,255,255,${pulse})`; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-          ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.restore();
+          const isOpen = engineRef.current.portalOpen;
+          ctx.save();
+          
+          // Gate Structure
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 4;
+          ctx.lineCap = 'round';
+          
+          // Pillars
+          ctx.beginPath();
+          ctx.moveTo(tx, ty + TILE_SIZE);
+          ctx.lineTo(tx, ty - 10);
+          ctx.moveTo(tx + TILE_SIZE, ty + TILE_SIZE);
+          ctx.lineTo(tx + TILE_SIZE, ty - 10);
+          ctx.stroke();
+          
+          // Arch
+          ctx.beginPath();
+          ctx.arc(tx + TILE_SIZE / 2, ty - 5, TILE_SIZE / 2, Math.PI, 0);
+          ctx.stroke();
+
+          if (isOpen) {
+            const pulse = Math.sin(time / 200) * 0.2 + 0.5;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#38bdf8';
+            
+            // Energy Field
+            const grad = ctx.createLinearGradient(tx, ty, tx, ty + TILE_SIZE);
+            grad.addColorStop(0, `rgba(56, 189, 248, ${pulse})`);
+            grad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(tx + 2, ty - 5, TILE_SIZE - 4, TILE_SIZE + 5);
+            
+            // Particles inside gate
+            for (let i = 0; i < 3; i++) {
+              const py = ty + ((time * 0.1 + i * 10) % TILE_SIZE);
+              ctx.fillStyle = '#fff';
+              ctx.beginPath();
+              ctx.arc(tx + Math.random() * TILE_SIZE, py, 1, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          } else {
+            // Locked / Closed
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(tx + 2, ty - 5, TILE_SIZE - 4, TILE_SIZE + 5);
+          }
+          
+          ctx.restore();
         }
       }
     }
@@ -758,7 +802,7 @@ export default function App() {
           {weaponFlash && (
             <motion.div 
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.3 }}
+              animate={{ opacity: 0.15 }}
               exit={{ opacity: 0 }}
               className={`absolute inset-0 z-40 pointer-events-none ${weapon === 'SWORD' ? 'bg-white' : 'bg-sky-400'}`}
             />
