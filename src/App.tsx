@@ -72,6 +72,7 @@ export default function App() {
     if (key === 'left') engineRef.current.input['arrowleft'] = true;
     if (key === 'right') engineRef.current.input['arrowright'] = true;
     if (key === 'up') engineRef.current.input['arrowup'] = true;
+    if (key === 'down') engineRef.current.input['arrowdown'] = true;
     if (key === 'jump') engineRef.current.input[' '] = true;
     if (key === 'attack') engineRef.current.input['z'] = true;
     if (key === 'dash') engineRef.current.input['shift'] = true;
@@ -88,6 +89,7 @@ export default function App() {
     if (key === 'left') engineRef.current.input['arrowleft'] = false;
     if (key === 'right') engineRef.current.input['arrowright'] = false;
     if (key === 'up') engineRef.current.input['arrowup'] = false;
+    if (key === 'down') engineRef.current.input['arrowdown'] = false;
     if (key === 'jump') engineRef.current.input[' '] = false;
     if (key === 'attack') engineRef.current.input['z'] = false;
     if (key === 'dash') engineRef.current.input['shift'] = false;

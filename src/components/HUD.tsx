@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Zap, Sword, Shield, Wind, Sparkles, Pause, RotateCcw } from 'lucide-react';
+import { Heart, Zap, Sword, Shield, Sparkles, Pause, RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Swords } from 'lucide-react';
 import { Theme } from '../types';
 import { soundManager } from '../lib/soundManager';
 import { ASSETS } from '../constants';
@@ -167,48 +167,60 @@ export const MobileControls: React.FC<{
   onWeaponToggle: () => void;
 }> = ({ onStart, onEnd, weapon, onWeaponToggle }) => {
   return (
-    <div className="absolute inset-x-0 bottom-2 sm:bottom-6 z-50 pointer-events-none flex items-end justify-between px-4 sm:px-10 lg:hidden">
-      {/* Left side: Movement */}
-      <div className="flex gap-2 pointer-events-auto">
+    <div className="absolute inset-x-0 bottom-4 sm:bottom-10 z-50 pointer-events-none flex items-end justify-between px-2 sm:px-12 lg:hidden">
+      {/* Left side: Movement & Crouch */}
+      <div className="flex flex-col gap-2 items-center pointer-events-auto">
+        <div className="flex gap-2">
+          <button 
+            onPointerDown={() => onStart('left')} 
+            onPointerUp={() => onEnd('left')}
+            onPointerLeave={() => onEnd('left')}
+            className="w-14 h-14 sm:w-20 sm:h-20 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center justify-center active:scale-90 active:bg-slate-800 transition-all shadow-2xl"
+          >
+            <ChevronLeft className="w-8 h-8 text-white/90" />
+          </button>
+          <button 
+            onPointerDown={() => onStart('right')} 
+            onPointerUp={() => onEnd('right')}
+            onPointerLeave={() => onEnd('right')}
+            className="w-14 h-14 sm:w-20 sm:h-20 bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center justify-center active:scale-90 active:bg-slate-800 transition-all shadow-2xl"
+          >
+            <ChevronRight className="w-8 h-8 text-white/90" />
+          </button>
+        </div>
         <button 
-          onPointerDown={() => onStart('left')} 
-          onPointerUp={() => onEnd('left')}
-          onPointerLeave={() => onEnd('left')}
-          className="w-14 h-14 sm:w-18 sm:h-18 bg-slate-900/30 backdrop-blur-md rounded-2xl border border-white/10 flex items-center justify-center active:scale-90 active:bg-slate-800 transition-all shadow-xl"
+          onPointerDown={() => onStart('down')} 
+          onPointerUp={() => onEnd('down')}
+          onPointerLeave={() => onEnd('down')}
+          className="w-14 h-12 bg-slate-900/60 backdrop-blur-xl rounded-xl border border-white/10 flex items-center justify-center active:scale-90 active:bg-slate-800 transition-all shadow-xl"
         >
-          <Wind className="w-8 h-8 text-white/70 rotate-180" />
-        </button>
-        <button 
-          onPointerDown={() => onStart('right')} 
-          onPointerUp={() => onEnd('right')}
-          onPointerLeave={() => onEnd('right')}
-          className="w-14 h-14 sm:w-18 sm:h-18 bg-slate-900/30 backdrop-blur-md rounded-2xl border border-white/10 flex items-center justify-center active:scale-90 active:bg-slate-800 transition-all shadow-xl"
-        >
-          <Wind className="w-8 h-8 text-white/70" />
+          <ChevronDown className="w-6 h-6 text-white/70" />
         </button>
       </div>
 
-      {/* Center: Swap */}
-      <div className="pointer-events-auto pb-4">
+      {/* Right side: Actions cluster */}
+      <div className="flex flex-col gap-3 items-end pointer-events-auto">
+        {/* Weapon Swap moved here */}
         <button 
           onClick={onWeaponToggle}
-          className="w-12 h-12 bg-sky-500/10 backdrop-blur-xl rounded-full border border-sky-400/30 flex flex-col items-center justify-center active:scale-75 shadow-lg transition-transform"
+          className="w-11 h-11 bg-sky-500/10 backdrop-blur-2xl rounded-full border border-sky-400/30 flex flex-col items-center justify-center active:scale-75 shadow-lg transition-transform mb-1 mr-2"
         >
-          <RotateCcw className="w-4 h-4 text-sky-400 mb-0.5" />
-          <span className="text-[6px] font-black text-sky-400 uppercase tracking-tighter">Swap</span>
+          <RotateCcw className="w-4 h-4 text-sky-400" />
+          <span className="text-[5px] font-black text-sky-400 uppercase tracking-tighter">Swap</span>
         </button>
-      </div>
 
-      {/* Right side: Actions */}
-      <div className="flex flex-col gap-2 items-end pointer-events-auto">
         <div className="flex gap-2 items-end">
           <div className="flex flex-col gap-2">
-            <button onPointerDown={() => onStart('magic')} onPointerUp={() => onEnd('magic')} onPointerLeave={() => onEnd('magic')} className="w-11 h-11 bg-purple-500/10 backdrop-blur-md rounded-xl border border-purple-500/30 flex items-center justify-center active:scale-90"><Sparkles className="w-5 h-5 text-purple-400/80" /></button>
-            <button onPointerDown={() => onStart('block')} onPointerUp={() => onEnd('block')} onPointerLeave={() => onEnd('block')} className="w-11 h-11 bg-sky-500/10 backdrop-blur-md rounded-xl border border-sky-500/30 flex items-center justify-center active:scale-90"><Shield className="w-5 h-5 text-sky-400/80" /></button>
+            <button onPointerDown={() => onStart('magic')} onPointerUp={() => onEnd('magic')} onPointerLeave={() => onEnd('magic')} className="w-12 h-12 bg-purple-500/20 backdrop-blur-xl rounded-xl border border-purple-500/30 flex items-center justify-center active:scale-95"><Sparkles className="w-6 h-6 text-purple-400" /></button>
+            <button onPointerDown={() => onStart('block')} onPointerUp={() => onEnd('block')} onPointerLeave={() => onEnd('block')} className="w-12 h-12 bg-sky-500/20 backdrop-blur-xl rounded-xl border border-sky-400/30 flex items-center justify-center active:scale-95"><Shield className="w-6 h-6 text-sky-400" /></button>
           </div>
-          <div className="flex flex-col gap-2">
-            <button onPointerDown={() => onStart('jump')} onPointerUp={() => onEnd('jump')} onPointerLeave={() => onEnd('jump')} className="w-16 h-16 sm:w-20 sm:h-20 bg-white/5 backdrop-blur-md rounded-full border border-white/20 flex items-center justify-center active:scale-90"><Zap className="w-6 h-6 text-white/60 -rotate-45" /></button>
-            <button onPointerDown={() => onStart('attack')} onPointerUp={() => onEnd('attack')} onPointerLeave={() => onEnd('attack')} className="w-18 h-18 sm:w-24 sm:h-24 bg-rose-600/20 backdrop-blur-md rounded-2xl border border-rose-500/40 flex items-center justify-center active:scale-90 shadow-2xl">{weapon === 'SWORD' ? <Sword className="w-9 h-9 text-white/90" /> : <Zap className="w-8 h-8 text-sky-400" />}</button>
+          <div className="flex flex-col gap-3">
+            <button onPointerDown={() => onStart('jump')} onPointerUp={() => onEnd('jump')} onPointerLeave={() => onEnd('jump')} className="w-16 h-16 sm:w-24 sm:h-24 bg-sky-500/20 backdrop-blur-xl rounded-full border-2 border-sky-400/40 flex items-center justify-center active:scale-95 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+              <ChevronUp className="w-10 h-10 text-sky-400" />
+            </button>
+            <button onPointerDown={() => onStart('attack')} onPointerUp={() => onEnd('attack')} onPointerLeave={() => onEnd('attack')} className="w-18 h-18 sm:w-28 sm:h-28 bg-rose-600/40 backdrop-blur-xl rounded-2xl border border-rose-500/50 flex items-center justify-center active:scale-95 shadow-2xl">
+              {weapon === 'SWORD' ? <Swords className="w-10 h-10 text-white" /> : <Zap className="w-9 h-9 text-sky-400" />}
+            </button>
           </div>
         </div>
       </div>
