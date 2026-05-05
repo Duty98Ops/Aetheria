@@ -694,13 +694,13 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-full h-screen bg-[#020617] overflow-hidden flex flex-col items-center justify-center font-sans selection:bg-sky-500/30 p-2 sm:p-4">
-      <div className="relative w-full max-w-[1000px] aspect-[4/3] flex items-center justify-center p-0.5 sm:p-2 bg-slate-900/40 rounded-2xl border border-white/5 shadow-2xl backdrop-blur-sm overflow-hidden">
+    <div className="relative w-full h-screen bg-[#020617] overflow-hidden flex flex-col items-center justify-center font-sans selection:bg-sky-500/30">
+      <div className="relative w-full max-w-[1000px] aspect-[4/3] md:aspect-auto md:h-[600px] flex items-center justify-center bg-slate-950/40 sm:rounded-2xl border-white/5 shadow-2xl backdrop-blur-sm overflow-hidden">
         <canvas 
           ref={canvasRef} 
           width={800} 
           height={600} 
-          className="w-full h-full object-contain rounded-xl shadow-inner pointer-events-none" 
+          className="w-full h-full object-contain pointer-events-none" 
         />
 
         {(gameState === 'PLAYING' || gameState === 'ESCAPE') && (
@@ -958,7 +958,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-20"><span className="text-[9px] text-white uppercase tracking-[0.5em] font-medium">Aetheria Immersive Framework v4.0</span><div className="w-12 h-[1px] bg-sky-500" /></div>
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 opacity-20"><span className="text-[9px] text-white uppercase tracking-[0.5em] font-medium">Aetheria Immersive Framework v4.0</span><div className="w-12 h-[1px] bg-sky-500" /></div>
       </div>
     </div>
   );
