@@ -109,6 +109,7 @@ export default function App() {
       score: engineRef.current.player.score,
       room,
       cycle,
+      difficulty,
       weapon,
       unlockedSkills,
       clearedNodes,
@@ -125,12 +126,13 @@ export default function App() {
     const saved = localStorage.getItem(SAVE_KEY);
     if (saved) {
       const data = JSON.parse(saved);
+      const loadedDifficulty = data.difficulty || 'NORMAL';
       setHealth(data.health);
       setMaxHealth(data.maxHealth);
       setScore(data.score);
       setRoom(data.room);
       setCycle(data.cycle);
-      setDifficulty(data.difficulty || 'NORMAL');
+      setDifficulty(loadedDifficulty);
       setWeapon(data.weapon || 'SWORD');
       setUnlockedSkills(data.unlockedSkills);
       setClearedNodes(data.clearedNodes);
@@ -142,6 +144,8 @@ export default function App() {
         engineRef.current.player.skills = new Set(data.unlockedSkills);
         engineRef.current.player.weapon = data.weapon || 'SWORD';
       }
+      
+      engineRef.current.difficulty = loadedDifficulty;
       
       setGameState('MAP');
     }
