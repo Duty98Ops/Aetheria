@@ -42,6 +42,8 @@ export interface TowerNode {
 
 export type HazardType = 'FALLING_DEBRIS' | 'VOID_ZONE' | 'LIGHTNING';
 
+export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
+
 export interface HazardData {
   id: string;
   type: HazardType;

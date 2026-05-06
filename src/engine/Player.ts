@@ -399,7 +399,7 @@ export class Player extends Entity {
       }
     }
 
-    this.hp -= amount;
+    this.hp -= amount * (engine?.difficultyScale || 1);
     this.invulnerabilityTime = INVULNERABILITY_TIME;
     this.hitFlash = 150;
     this.vel.y = -5;

@@ -24,6 +24,7 @@ interface HUDProps {
   escapeTimer: number;
   onPause: () => void;
   isMobile: boolean;
+  difficulty: 'EASY' | 'NORMAL' | 'HARD';
   onWeaponToggle: () => void;
 }
 
@@ -40,6 +41,7 @@ export const HUD: React.FC<HUDProps> = ({
   escapeActive,
   escapeTimer,
   onPause,
+  difficulty,
   onWeaponToggle
 }) => {
   return (
@@ -119,6 +121,15 @@ export const HUD: React.FC<HUDProps> = ({
 
         {/* Right Side: Location */}
         <div className="flex flex-col items-end gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[6px] sm:text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
+              difficulty === 'EASY' ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10' :
+              difficulty === 'HARD' ? 'text-rose-400 border-rose-400/30 bg-rose-400/10' :
+              'text-sky-400 border-sky-400/30 bg-sky-400/10'
+            }`}>
+              {difficulty}
+            </span>
+          </div>
           <div className="bg-slate-950/80 backdrop-blur-xl border border-white/10 p-1.5 sm:p-3 sm:px-5 rounded-lg sm:rounded-2xl flex flex-col items-end shadow-lg min-w-[80px] xs:min-w-[120px] sm:min-w-[140px] max-w-[40vw] sm:max-w-none">
             <span className="text-[7px] text-sky-400 font-bold tracking-[0.4em] uppercase opacity-60 truncate w-full text-right">{theme.floor}</span>
             <p className="text-white text-[9px] xs:text-[12px] sm:text-base font-black italic tracking-tighter uppercase mb-0.5 sm:mb-2 leading-none truncate w-full text-right">{theme.name}</p>

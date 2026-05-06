@@ -26,7 +26,7 @@ import {
   TOWER_NODES,
   ASSETS
 } from './constants';
-import { GameState } from './types';
+import { GameState, Difficulty } from './types';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,6 +49,7 @@ export default function App() {
   const [bossMaxHP, setBossMaxHP] = useState(0);
   const [bossMessage, setBossMessage] = useState<string | null>(null);
   const [weapon, setWeapon] = useState<'SWORD' | 'PISTOL'>('SWORD');
+  const [difficulty, setDifficulty] = useState<Difficulty>('NORMAL');
   const [unlockedSkills, setUnlockedSkills] = useState<string[]>([]);
   const [clearedNodes, setClearedNodes] = useState<number[]>([]);
   const [escapeTimer, setEscapeTimer] = useState(60);
@@ -129,6 +130,7 @@ export default function App() {
       setScore(data.score);
       setRoom(data.room);
       setCycle(data.cycle);
+      setDifficulty(data.difficulty || 'NORMAL');
       setWeapon(data.weapon || 'SWORD');
       setUnlockedSkills(data.unlockedSkills);
       setClearedNodes(data.clearedNodes);
@@ -167,6 +169,7 @@ export default function App() {
     particles: [] as Particle[],
     projectiles: [] as Projectile[],
     input: {} as { [key: string]: boolean },
+    difficulty: 'NORMAL' as Difficulty,
     camera: new Vector(0, 0),
     level: MAPS[0],
     lastHP: 100,
@@ -274,8 +277,13 @@ export default function App() {
     }
 
     const currentCycle = nextCycle ?? cycle;
-    const scale = 1 + (currentCycle * CYCLE_DIFFICULTY_STEP) + (selectedRoom * 0.15);
+    
+    // Difficulty Modifiers
+    const diffModifier = difficulty === 'EASY' ? 0.75 : difficulty === 'HARD' ? 1.5 : 1;
+    const scale = (1 + (currentCycle * CYCLE_DIFFICULTY_STEP) + (selectedRoom * 0.15)) * diffModifier;
+    
     engine.difficultyScale = scale;
+    engine.difficulty = difficulty;
     engine.level = JSON.parse(JSON.stringify(MAPS[selectedRoom]));
     engine.portalOpen = false;
     engine.portalLock = false;
@@ -786,6 +794,7 @@ export default function App() {
             theme={theme} enemiesDefeated={enemiesDefeated} totalEnemies={totalEnemies} 
             portalOpen={portalOpen} bossMessage={bossMessage} escapeActive={gameState === 'ESCAPE'} 
             escapeTimer={escapeTimer} onPause={() => setGameState('PAUSED')} isMobile={isMobile}
+            difficulty={difficulty}
             onWeaponToggle={toggleWeapon}
           />
         )}
@@ -939,6 +948,33 @@ export default function App() {
                           <span className="text-white/60 group-hover:text-white font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs transition-colors">Resume Journey</span>
                         </button>
                       )}
+
+                      <div className="flex flex-col items-center gap-3 pt-4">
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Difficulty Level</span>
+                        <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
+                          {(['EASY', 'NORMAL', 'HARD'] as const).map((diff) => (
+                            <button
+                              key={diff}
+                              onClick={() => {
+                                setDifficulty(diff);
+                                soundManager.playSFX(ASSETS.SFX_DASH);
+                              }}
+                              className={`px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all min-w-[100px] ${
+                                difficulty === diff 
+                                  ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)]' 
+                                  : 'text-white/30 hover:text-white/60 hover:bg-white/5'
+                              }`}
+                            >
+                              {diff}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[9px] text-white/20 max-w-xs leading-relaxed uppercase tracking-widest text-center italic">
+                          {difficulty === 'EASY' && "For those who seek the story and exploration."}
+                          {difficulty === 'NORMAL' && "The balanced experience of Aetheria."}
+                          {difficulty === 'HARD' && "A ruthless test of skill and reaction."}
+                        </p>
+                      </div>
                     </motion.div>
                   </div>
                   
