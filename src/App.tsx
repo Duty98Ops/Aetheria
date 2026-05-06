@@ -159,7 +159,7 @@ export default function App() {
     setClearedNodes([]);
     setCurrentMapNode(0);
     engineRef.current.player = new Player();
-    setGameState('MAP');
+    setGameState('DIFFICULTY_SELECT');
   };
 
   const engineRef = useRef({
@@ -279,7 +279,11 @@ export default function App() {
     const currentCycle = nextCycle ?? cycle;
     
     // Difficulty Modifiers
-    const diffModifier = difficulty === 'EASY' ? 0.75 : difficulty === 'HARD' ? 1.5 : 1;
+    const diffModifier = 
+      difficulty === 'EASY' ? 0.75 : 
+      difficulty === 'HARD' ? 1.5 : 
+      difficulty === 'NIGHTMARE' ? 4.0 : 
+      1;
     const scale = (1 + (currentCycle * CYCLE_DIFFICULTY_STEP) + (selectedRoom * 0.15)) * diffModifier;
     
     engine.difficultyScale = scale;
@@ -851,10 +855,54 @@ export default function App() {
           {showSaved && (
             <motion.div key="save-status" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute top-10 right-10 z-[200] bg-sky-500/20 backdrop-blur-xl border border-sky-400/30 px-4 py-2 rounded-lg pointer-events-none flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" /><span className="text-[10px] font-black text-white uppercase tracking-widest">Progress Saved</span></motion.div>
           )}
-          {(gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'GAMEOVER' || gameState === 'ENDING') && (
+          {(gameState === 'START' || gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'GAMEOVER' || gameState === 'ENDING' || gameState === 'DIFFICULTY_SELECT') && (
             <motion.div key={`game-state-overlay-${gameState}`} initial={{ opacity: 0, backdropFilter: "blur(0px)" }} animate={{ opacity: 1, backdropFilter: "blur(8px)" }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] pointer-events-auto flex flex-col items-center justify-center bg-black/60 p-4 sm:p-12 overflow-y-auto scrollbar-hide">
-              {(gameState === 'MAP' || gameState === 'UPGRADE') && (
+              {(gameState === 'MAP' || gameState === 'UPGRADE' || gameState === 'DIFFICULTY_SELECT') && (
                 <button onClick={() => setGameState('START')} className="absolute top-6 left-6 flex items-center gap-2 text-white/40 hover:text-white transition-colors group z-[110]"><ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /><span className="text-[10px] font-black uppercase tracking-widest">Main Menu</span></button>
+              )}
+              {gameState === 'DIFFICULTY_SELECT' && (
+                <div className="space-y-12 w-full max-w-2xl px-4 text-center">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2"
+                  >
+                    <p className="text-rose-500 text-[10px] uppercase font-black tracking-[0.8em]">Level of Difficulty</p>
+                    <h2 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter">Choose Your Path</h2>
+                  </motion.div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {(['EASY', 'NORMAL', 'HARD', 'NIGHTMARE'] as const).map((diff) => (
+                      <motion.button
+                        key={diff}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setDifficulty(diff);
+                          soundManager.playSFX(ASSETS.SFX_DASH);
+                          setGameState('MAP');
+                        }}
+                        className={`group p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                          difficulty === diff 
+                            ? (diff === 'NIGHTMARE' ? 'border-purple-600 bg-purple-600/10 shadow-[0_0_40px_rgba(147,51,234,0.3)]' : 'border-rose-500 bg-rose-500/10 shadow-[0_0_40px_rgba(225,29,72,0.2)]')
+                            : 'border-white/10 bg-white/5 hover:border-white/30'
+                        }`}
+                      >
+                        <span className={`text-xl font-black uppercase italic tracking-widest ${
+                          difficulty === diff ? 'text-white' : 'text-white/40'
+                        } ${diff === 'NIGHTMARE' ? 'text-purple-400' : ''}`}>
+                          {diff}
+                        </span>
+                        <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-medium italic">
+                          {diff === 'EASY' && "Enemies have lower health and damage."}
+                          {diff === 'NORMAL' && "Standard balanced difficulty."}
+                          {diff === 'HARD' && "Highly lethal enemies and faster reaction needed."}
+                          {diff === 'NIGHTMARE' && "Pure Abyssal Torture. Near impossible to survive."}
+                        </p>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
               )}
               {gameState === 'START' && (
                 <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center">
@@ -948,33 +996,6 @@ export default function App() {
                           <span className="text-white/60 group-hover:text-white font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs transition-colors">Resume Journey</span>
                         </button>
                       )}
-
-                      <div className="flex flex-col items-center gap-3 pt-4">
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Difficulty Level</span>
-                        <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
-                          {(['EASY', 'NORMAL', 'HARD'] as const).map((diff) => (
-                            <button
-                              key={diff}
-                              onClick={() => {
-                                setDifficulty(diff);
-                                soundManager.playSFX(ASSETS.SFX_DASH);
-                              }}
-                              className={`px-6 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all min-w-[100px] ${
-                                difficulty === diff 
-                                  ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)]' 
-                                  : 'text-white/30 hover:text-white/60 hover:bg-white/5'
-                              }`}
-                            >
-                              {diff}
-                            </button>
-                          ))}
-                        </div>
-                        <p className="text-[9px] text-white/20 max-w-xs leading-relaxed uppercase tracking-widest text-center italic">
-                          {difficulty === 'EASY' && "For those who seek the story and exploration."}
-                          {difficulty === 'NORMAL' && "The balanced experience of Aetheria."}
-                          {difficulty === 'HARD' && "A ruthless test of skill and reaction."}
-                        </p>
-                      </div>
                     </motion.div>
                   </div>
                   

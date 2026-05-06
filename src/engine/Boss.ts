@@ -76,7 +76,8 @@ export class FallenAscendant extends Entity {
 
     // Collision with Player
     if (this.checkCollision(this.rect, player.rect)) {
-      player.takeDamage(15, engine, this);
+      const damage = engine.difficulty === 'NIGHTMARE' ? 40 : 15;
+      player.takeDamage(damage, engine, this);
     }
     
     // Melee attack hit check
@@ -140,7 +141,7 @@ export class FallenAscendant extends Entity {
           if (Math.abs(this.stateTimer - 250) < 20) engine.shakeIntensity = 5;
         } else {
           this.state = 'IDLE';
-          this.stateTimer = 1000;
+          this.stateTimer = engine.difficulty === 'NIGHTMARE' ? 400 : 1000;
           this.vel.x = 0;
         }
         break;
@@ -159,7 +160,7 @@ export class FallenAscendant extends Entity {
             this.stateTimer = -1;
         } else if (this.stateTimer <= 0) {
            this.state = 'IDLE';
-           this.stateTimer = 800;
+           this.stateTimer = engine.difficulty === 'NIGHTMARE' ? 300 : 800;
         }
         break;
       case 'PROJECTILE':
@@ -177,7 +178,8 @@ export class FallenAscendant extends Entity {
            
            const laserRect = { x: laserX, y: laserY, width: laserWidth, height: laserHeight };
            if (this.checkCollision(laserRect, player.rect)) {
-             player.takeDamage(2, engine, this); 
+             const damage = engine.difficulty === 'NIGHTMARE' ? 10 : 2;
+             player.takeDamage(damage, engine, this); 
            }
 
            for(let i=0; i<3; i++) {
@@ -187,7 +189,7 @@ export class FallenAscendant extends Entity {
            }
         } else if (this.stateTimer <= 0) {
           this.state = 'IDLE';
-          this.stateTimer = 1200;
+          this.stateTimer = engine.difficulty === 'NIGHTMARE' ? 500 : 1200;
           this.laserActive = false;
         }
         break;

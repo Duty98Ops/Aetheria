@@ -125,6 +125,7 @@ export const HUD: React.FC<HUDProps> = ({
             <span className={`text-[6px] sm:text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
               difficulty === 'EASY' ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10' :
               difficulty === 'HARD' ? 'text-rose-400 border-rose-400/30 bg-rose-400/10' :
+              difficulty === 'NIGHTMARE' ? 'text-purple-400 border-purple-400/30 bg-purple-400/10 shadow-[0_0_10px_rgba(168,85,247,0.4)]' :
               'text-sky-400 border-sky-400/30 bg-sky-400/10'
             }`}>
               {difficulty}

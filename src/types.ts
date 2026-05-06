@@ -12,7 +12,7 @@ export interface Rect {
   height: number;
 }
 
-export type GameState = 'START' | 'PLAYING' | 'GAMEOVER' | 'UPGRADE' | 'MAP' | 'ENDING' | 'ESCAPE' | 'PAUSED';
+export type GameState = 'START' | 'PLAYING' | 'GAMEOVER' | 'UPGRADE' | 'MAP' | 'ENDING' | 'ESCAPE' | 'PAUSED' | 'DIFFICULTY_SELECT';
 
 export interface Theme {
   name: string;
@@ -42,7 +42,7 @@ export interface TowerNode {
 
 export type HazardType = 'FALLING_DEBRIS' | 'VOID_ZONE' | 'LIGHTNING';
 
-export type Difficulty = 'EASY' | 'NORMAL' | 'HARD';
+export type Difficulty = 'EASY' | 'NORMAL' | 'HARD' | 'NIGHTMARE';
 
 export interface HazardData {
   id: string;
