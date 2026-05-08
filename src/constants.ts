@@ -13,7 +13,10 @@ export const ASSETS = {
   SFX_DASH: '',
   SFX_HIT: '',
   SFX_DEATH: '',
-  SFX_PORTAL: ''
+  SFX_PORTAL: '',
+  PLAYER_WALK: '/assets/knight_walk.png',
+  PLAYER_ATTACK: '/assets/knight_attack.png',
+  PLAYER_IDLE: '/assets/knight_idle.png'
 };
 
 export const TILE_SIZE = 32;

@@ -47,6 +47,17 @@ export class Player extends Entity {
   public walkTimer = 0;
   public wasOnGround = false;
   
+  // Animation Assets
+  private sprites: { [key: string]: HTMLImageElement } = {};
+  private spriteFrames: { [key: string]: number } = {
+    'IDLE': 4,
+    'WALK': 6,
+    'ATTACK': 4
+  };
+  private frameTimer = 0;
+  private currentFrame = 0;
+  private prevState = 'IDLE';
+  
   // New Mechanics
   public coyoteTimer = 0;
   public jumpBufferTimer = 0;
@@ -63,6 +74,27 @@ export class Player extends Entity {
   constructor() {
     super();
     this.cape = new Cape(0, 0);
+    this.loadSprites();
+  }
+
+  private loadSprites() {
+    const spriteConfig = [
+      { key: 'IDLE', src: ASSETS.PLAYER_IDLE },
+      { key: 'WALK', src: ASSETS.PLAYER_WALK },
+      { key: 'ATTACK', src: ASSETS.PLAYER_ATTACK }
+    ];
+
+    spriteConfig.forEach(config => {
+      const img = new Image();
+      img.src = config.src;
+      this.sprites[config.key] = img;
+    });
+  }
+
+  private getAnimationState(): string {
+    if (this.isAttacking) return 'ATTACK';
+    if (Math.abs(this.vel.x) > 0.5 && this.onGround) return 'WALK';
+    return 'IDLE';
   }
 
   update(input: { [key: string]: boolean }, level: number[][], particles: Particle[]) {
@@ -73,6 +105,27 @@ export class Player extends Entity {
         this.facing, 
         this.vel.x
     );
+
+    // Animation frames update
+    const state = this.getAnimationState();
+    if (state !== this.prevState) {
+      this.currentFrame = 0;
+      this.frameTimer = 0;
+      this.prevState = state;
+    }
+
+    const totalFrames = this.spriteFrames[state] || 1;
+    this.frameTimer += 16; 
+    
+    const frameDuration = state === 'ATTACK' ? 40 : 100;
+    if (this.frameTimer >= frameDuration) {
+      this.currentFrame = (this.currentFrame + 1) % totalFrames;
+      this.frameTimer = 0;
+    }
+
+    // Reset frame if state changed (though here we just let it roll for simplicity, 
+    // real engine would check if state changed)
+
     // Timers
     if (this.coyoteTimer > 0) this.coyoteTimer -= 16;
     if (this.jumpBufferTimer > 0) this.jumpBufferTimer -= 16;
@@ -449,80 +502,55 @@ export class Player extends Entity {
       ctx.restore();
     }
 
-    // Fallen Knight Silhouette
-    const bounce = Math.sin(this.animFrame) * 2;
-    const lungeX = this.lungeTimer > 0 ? this.facing * 8 : 0;
-    
     ctx.save();
+    const lungeX = this.lungeTimer > 0 ? this.facing * 8 : 0;
     ctx.translate(screenX + Math.floor(this.width/2) + lungeX, screenY + this.height);
     
-    // Armor Frame
-    ctx.fillStyle = '#0f172a'; // Deep Obsidian
-    ctx.strokeStyle = '#334155'; // Worn Iron
-    ctx.lineWidth = 1.5;
+    // Fallen Knight Sprite
+    const state = this.getAnimationState();
+    const sprite = this.sprites[state];
     
-    // Body Armor (Plates)
-    const bodyH = this.isCrouching ? 16 : 28;
-    const bodyY = this.isCrouching ? -16 : -36;
-    
-    // Chest Plate
-    ctx.beginPath();
-    ctx.roundRect(-12, bodyY + bounce, 24, bodyH, 4);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Rust details
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = '#7c2d12'; // Rust
-    ctx.fillRect(-10, bodyY + 5 + bounce, 8, 4);
-    ctx.fillRect(2, bodyY + 15 + bounce, 6, 3);
-    ctx.globalAlpha = 1.0;
-
-    // Great Helmet
-    const headY = this.isCrouching ? -28 : -48;
-    ctx.fillStyle = '#1e293b';
-    ctx.beginPath();
-    ctx.roundRect(-10, headY + bounce, 20, 16, 4);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Visor Slit
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-8, headY + 6 + bounce, 16, 4);
-
-    // Soul Glow (Eyes)
-    ctx.fillStyle = '#fbbf24';
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = '#d97706';
-    const eyeOffsetX = this.facing === 1 ? 2 : -6;
-    ctx.fillRect(eyeOffsetX, headY + 6 + bounce, 4, 3);
-    ctx.shadowBlur = 0;
-
-    // Rusted Greatsword / Staff
-    ctx.save();
-    const weaponX = this.facing === 1 ? 12 : -18;
-    const weaponRot = Math.sin(this.animFrame * 0.5) * 0.1;
-    ctx.translate(weaponX, -20 + bounce);
-    ctx.rotate(weaponRot);
-    
-    if (this.weapon === 'SWORD') {
-      // Greatsword
-      ctx.fillStyle = '#475569'; // Steel
-      ctx.beginPath();
-      ctx.moveTo(0, 0); ctx.lineTo(-2, -40); ctx.lineTo(6, -40); ctx.lineTo(4, 0); ctx.fill();
-      // Edge wear
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
+    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+      const spriteSize = 64; // Default assume 64x64
+      const sx = this.currentFrame * spriteSize;
+      const sy = 0;
+      
+      ctx.save();
+      // Mirror if facing left
+      if (this.facing === -1) {
+        ctx.scale(-1, 1);
+      }
+      
+      ctx.drawImage(
+        sprite,
+        sx, sy, spriteSize, spriteSize,
+        -Math.floor(spriteSize/2), -spriteSize, spriteSize, spriteSize
+      );
+      ctx.restore();
     } else {
-      // Iron Arbalest
-      ctx.fillStyle = '#2d1a0a';
-      ctx.fillRect(0, 0, 14, 8);
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(2, -4, 10, 4);
+      // Fallback to silhouette if sprites not loaded
+      const bounce = Math.sin(this.animFrame) * 2;
+      const bodyH = this.isCrouching ? 16 : 28;
+      const bodyY = this.isCrouching ? -16 : -36;
+      
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      
+      ctx.beginPath();
+      ctx.roundRect(-12, bodyY + bounce, 24, bodyH, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Helmet 
+      const headY = this.isCrouching ? -28 : -48;
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.roundRect(-10, headY + bounce, 20, 16, 4);
+      ctx.fill();
+      ctx.stroke();
     }
-    ctx.restore();
-    
+
     // Combat Feedback Effects
     if (this.isAttacking) {
       ctx.save();
